@@ -1,11 +1,12 @@
 import axios from "axios";
 
 // Lấy địa chỉ IP hiện tại của trình duyệt (localhost hoặc 192.168.x.x)
-const currentHost = window.location.hostname;
+// const currentHost = window.location.hostname;
 
 const axiosClient = axios.create({
   // Tự động ghép IP với port 8080 của Backend
-  baseURL: `http://${currentHost}:8080`,
+  // baseURL: `http://${currentHost}:8080`,
+  baseURL: "https://intellicare-tainh.onrender.com",
   headers: {
     "Content-Type": "application/json",
   },
