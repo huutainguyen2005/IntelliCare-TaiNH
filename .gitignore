@@ -1,0 +1,87 @@
+# --- IDEs  ---
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.iws
+
+# --- Frontend (React + Vite) ---
+node_modules/
+dist/
+coverage/
+
+# npm/yarn/pnpm logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# cache
+.eslintcache
+.cache/
+.vite/
+
+# env files
+.env
+.env.*
+!.env.example
+
+# ---  Backend (Spring Boot) ---
+target/
+build/
+.gradle/
+
+# compiled files
+*.class
+
+# logs
+logs/
+*.log
+
+# packaged files
+*.jar
+*.war
+*.ear
+
+# temporary files
+*.tmp
+*.bak
+
+# --- Spring Boot configs ---
+application-dev.properties
+application-prod.properties
+application-secret.properties
+datasource.properties
+
+# local overrides
+*.properties.local
+*.yml.local
+*.yaml.local
+
+# --- Database ---
+*.db
+*.sqlite
+*.sqlite3
+*.h2.db
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Misc
+out/
+
+# --- IoT (PlatformIO / C / C++) ---
+.pio/
+.pioenvs/
+.piolibdeps/
+.vscode/
+.clang_complete
+.gcc-flags.json
+*.bin
+*.elf
+*.hex
+*.a
+*.o
+*.obj
