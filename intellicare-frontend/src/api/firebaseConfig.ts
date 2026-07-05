@@ -2,14 +2,15 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCXAG411dEfFmtb44A-q2couXKSScD143Q",
-    authDomain: "intellicare-1349c.firebaseapp.com",
-    projectId: "intellicare-1349c",
-    storageBucket: "intellicare-1349c.firebasestorage.app",
-    messagingSenderId: "503044258039",
-    appId: "1:503044258039:web:0fb8b0a5d14b8cb9f87bf2"
+  apiKey: "AIzaSyAxlVy9ztlYnu3Mu3FlFuoS0xBTDltpRCQ",
+  authDomain: "intellicare-52e49.firebaseapp.com",
+  projectId: "intellicare-52e49",
+  storageBucket: "intellicare-52e49.firebasestorage.app",
+  messagingSenderId: "692139640301",
+  appId: "1:692139640301:web:e27822fc7801d6d055d3e4",
+  measurementId: "G-0BW62H8ZMR",
 };
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-auth.languageCode = 'vi'; // SMS gửi về sẽ là Tiếng Việt
+auth.languageCode = "vi"; // SMS gửi về sẽ là Tiếng Việt

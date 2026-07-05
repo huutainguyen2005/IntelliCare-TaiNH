@@ -4,13 +4,14 @@ import axiosClient from "../api/axiosClient";
 import Modal from "../components/Modal";
 import { auth } from "../api/firebaseConfig";
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
-
+import { useCustomAuth } from "../context/AuthContext";
 import type { ConfirmationResult } from "firebase/auth";
 
 // Khởi tạo Recaptcha ngoài component để tránh lỗi re-render
 let recaptchaVerifierInstance: RecaptchaVerifier | null = null;
 
 export default function Scanner() {
+  const { user } = useCustomAuth();
   const [patientName, setPatientName] = useState<string>("");
   const [deviceId, setDeviceId] = useState("SCALE-DEMO-01");
   const [status, setStatus] = useState<"IDLE" | "PENDING" | "COMPLETED">(
@@ -79,6 +80,24 @@ export default function Scanner() {
               rawQrData: decodedText,
             },
           );
+
+          // Chặn bệnh nhân quét CCCD của người khác
+          if (user && user.role === "ROLE_PATIENT") {
+            // Lấy tên từ dữ liệu CCCD (tùy thuộc vào việc là user mới hay cũ)
+            const scannedName = response.data.isNew
+              ? response.data.parsedData.fullName
+              : response.data.session.patientName;
+
+            // Nếu tên trên CCCD không khớp với tên tài khoản đang đăng nhập
+            if (scannedName !== user.fullName) {
+              showModal(
+                `Lỗi xác thực: Bạn đang đăng nhập là ${user.fullName}, không thể quét CCCD của ${scannedName}!`,
+                "error",
+              );
+              setStatus("IDLE");
+              return; // Chặn đứng luồng chạy, không cho hiển thị popup nhập OTP
+            }
+          }
 
           if (response.data.isNew) {
             setParsedData(response.data.parsedData);
