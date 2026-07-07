@@ -25,10 +25,10 @@ public class Patient {
     @Column(name = "patient_code", unique = true, nullable = false, length = 30)
     private String patientCode;
 
-    @Column(name = "phone_number", unique = true, nullable = false, length = 10)
+    @Column(name = "phone_number", unique = true, nullable = false, length = 20)
     private String phoneNumber;
 
-    @Column(name = "email", unique = true, nullable = true, length = 100)
+    @Column(name = "email", nullable = true, length = 100)
     private String email;
 
     @Column(name = "id_card", unique = true, length = 20)

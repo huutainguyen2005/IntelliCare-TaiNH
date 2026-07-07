@@ -1,11 +1,11 @@
-package vn.edu.fpt.sba.intellicare.dto;
+package vn.edu.fpt.sba.intellicare.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-public class StaffRegisterDto {
+public class StaffRegisterDTO {
     @NotBlank(message = "Tên đăng nhập không được để trống")
     @Size(min = 4, max = 50, message = "Tên đăng nhập phải từ 4 đến 50 ký tự")
     private String username;

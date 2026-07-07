@@ -12,13 +12,14 @@ let recaptchaVerifierInstance: RecaptchaVerifier | null = null;
 export default function PatientRegistration() {
   const navigate = useNavigate();
 
-  // 1. TÁCH STATE CHO PHONE VÀ EMAIL
+  // 1. TÁCH STATE CHO PHONE, EMAIL VÀ THÊM PASSWORD
   const [formData, setFormData] = useState({
     fullName: "",
     phoneNumber: "", // Bắt buộc
     email: "", // Tùy chọn
     dob: "",
     gender: "Nam",
+    password: "", // Mật khẩu người dùng tự đặt
   });
 
   const [otp, setOtp] = useState("");
@@ -61,12 +62,12 @@ export default function PatientRegistration() {
     return val.includes("@");
   };
 
-  const formatPhoneNumber = (phone: string) => {
+  const formatPhoneNumberForFirebase = (phone: string) => {
     let formatted = phone.trim();
     if (formatted.startsWith("0")) {
-      formatted = "+84" + formatted.slice(1);
+      formatted = formatted.substring(1);
     }
-    return formatted;
+    return "+84" + formatted;
   };
 
   // HÀM 1: KIỂM TRA TRÙNG LẶP & GỬI MÃ OTP
@@ -83,7 +84,7 @@ export default function PatientRegistration() {
     }
 
     // Tối ưu Regex kiểm tra SĐT Việt Nam
-    if (!inputPhone.match(/^0[35789][0-9]{8}$/)) {
+    if (!inputPhone.match(/^0(3[2-9]|5[25689]|7[06789]|8[1-9]|9\d)\d{7}$/)) {
       return showModal("Số điện thoại không đúng định dạng!", "warning");
     }
     if (inputEmail && !isEmailFormat(inputEmail)) {
@@ -150,7 +151,7 @@ export default function PatientRegistration() {
           );
         }
 
-        const globalPhone = formatPhoneNumber(inputPhone);
+        const globalPhone = formatPhoneNumberForFirebase(inputPhone);
         const confirmation = await signInWithPhoneNumber(
           auth,
           globalPhone,
@@ -179,6 +180,14 @@ export default function PatientRegistration() {
     e.preventDefault();
     if (!otp) return showModal("Vui lòng nhập mã OTP!", "warning");
 
+    // Validate Mật khẩu mới được nhập ở Bước 2
+    if (!formData.password.trim()) {
+      return showModal("Vui lòng thiết lập mật khẩu!", "warning");
+    }
+    if (formData.password.length < 6) {
+      return showModal("Mật khẩu phải có ít nhất 6 ký tự!", "warning");
+    }
+
     setLoading(true);
     try {
       const inputPhone = formData.phoneNumber.trim();
@@ -192,29 +201,35 @@ export default function PatientRegistration() {
         await confirmationResult.confirm(otp);
       }
 
-      // 2. Gom Payload đủ cả Phone và Email gửi xuống Backend
+      // 2. Gom Payload đủ cả Phone, Email và Mật khẩu gửi xuống Backend
       const payload = {
         fullName: formData.fullName.trim(),
         phoneNumber: inputPhone,
         email: inputEmail || null, // Truyền null nếu rỗng để Backend dễ xử lý
         dob: formData.dob,
         gender: formData.gender,
+        password: formData.password, // Gửi mật khẩu xuống Spring Boot
         otp: otp,
       };
 
-      await axiosClient.post("/auth/register", payload);
+      await axiosClient.post("/auth/patient/register", payload);
 
       showModal("Đăng ký tài khoản bệnh nhân thành công!", "success", () => {
         navigate(`/login`);
       });
     } catch (error: any) {
       console.error(error);
-      let errorMsg = "Mã OTP không chính xác hoặc đã hết hạn!";
+      let errorMsg = "Lỗi khi đăng ký tài khoản!";
       if (error.response?.data) {
+        // Backend có thể trả về lỗi Validation (mã 400), bắt để hiển thị rõ
         errorMsg =
           typeof error.response.data === "string"
             ? error.response.data
             : error.response.data.message || errorMsg;
+      } else if (error.code === "auth/invalid-verification-code") {
+        errorMsg = "Mã OTP không chính xác!";
+      } else if (error.code === "auth/code-expired") {
+        errorMsg = "Mã OTP đã hết hạn, vui lòng gửi lại!";
       }
       showModal(errorMsg, "error");
     } finally {
@@ -233,6 +248,7 @@ export default function PatientRegistration() {
         >
           {!isOtpSent ? (
             <>
+              {/* --- BƯỚC 1: NHẬP THÔNG TIN CÁ NHÂN --- */}
               <label style={styles.infoLabel}>Họ và tên *</label>
               <input
                 style={styles.inputField}
@@ -243,7 +259,6 @@ export default function PatientRegistration() {
                 onChange={handleChange}
               />
 
-              {/* Tách riêng Số điện thoại (Bắt buộc) */}
               <label style={styles.infoLabel}>Số điện thoại *</label>
               <input
                 style={styles.inputField}
@@ -254,7 +269,6 @@ export default function PatientRegistration() {
                 onChange={handleChange}
               />
 
-              {/* Tách riêng Email (Tùy chọn) */}
               <label style={styles.infoLabel}>Email (Tùy chọn)</label>
               <input
                 style={styles.inputField}
@@ -297,6 +311,7 @@ export default function PatientRegistration() {
             </>
           ) : (
             <>
+              {/* --- BƯỚC 2: XÁC THỰC OTP & NHẬP MẬT KHẨU --- */}
               <div style={{ textAlign: "center", marginBottom: "25px" }}>
                 <p
                   style={{
@@ -325,7 +340,7 @@ export default function PatientRegistration() {
                 </button>
               </div>
 
-              <label style={styles.infoLabel}>Nhập mã OTP (6 số)</label>
+              <label style={styles.infoLabel}>Nhập mã OTP (6 số) *</label>
               <input
                 style={styles.otpInputField}
                 type="text"
@@ -334,6 +349,18 @@ export default function PatientRegistration() {
                 required
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+              />
+
+              {/* Ô NHẬP MẬT KHẨU NẰM Ở ĐÂY */}
+              <label style={styles.infoLabel}>Tạo mật khẩu đăng nhập *</label>
+              <input
+                style={styles.inputField}
+                name="password"
+                type="password"
+                value={formData.password}
+                placeholder="Nhập mật khẩu (Ít nhất 6 ký tự)"
+                required
+                onChange={handleChange}
               />
 
               <button

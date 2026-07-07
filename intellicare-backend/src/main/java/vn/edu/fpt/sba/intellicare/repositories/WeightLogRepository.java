@@ -12,5 +12,6 @@ public interface WeightLogRepository extends JpaRepository<WeightLog, Integer> {
 
     // Tìm kết quả cân nặng mới nhất dựa vào ID Cân và ID Bệnh nhân
     Optional<WeightLog> findTopByDevice_DeviceIdAndPatient_PatientIdOrderByLogIdDesc(String deviceId, Integer patientId);
+    
     List<WeightLog> findAllByPatient_PatientId(Integer patientId);
 }

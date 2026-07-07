@@ -7,8 +7,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
 import vn.edu.fpt.sba.intellicare.dto.request.LoginRequestDTO;
-import vn.edu.fpt.sba.intellicare.dto.request.RegisterRequestDTO;
+import vn.edu.fpt.sba.intellicare.dto.request.PatientRegisterDTO;
+import vn.edu.fpt.sba.intellicare.dto.request.StaffRegisterDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.AuthResponseDTO;
 import vn.edu.fpt.sba.intellicare.entities.Patient;
 import vn.edu.fpt.sba.intellicare.entities.Staff;
@@ -69,22 +71,43 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponseDTO(token, "PATIENT", patient.getFullName()));
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<?> registerPatient(@Valid @RequestBody RegisterRequestDTO request) {
+    @PostMapping("/staff/register")
+    public ResponseEntity<?> registerStaff(@Valid @RequestBody StaffRegisterDTO request) {
+        
+        // 1. Kiểm tra trùng lặp Tên đăng nhập
+        if (staffRepository.findByUsername(request.getUsername().trim()).isPresent()) {
+            return ResponseEntity.badRequest().body("Tên đăng nhập này đã tồn tại trong hệ thống!");
+        }
+
+        // 2. Tạo đối tượng Staff mới
+        Staff staff = new Staff();
+        staff.setUsername(request.getUsername().trim());
+        staff.setFullName(request.getFullName().trim());
+        
+        // Lưu role ở dạng in hoa để chuẩn hóa với Spring Security (VD: DOCTOR, NURSE)
+        staff.setRole(request.getRole().trim().toUpperCase()); 
+
+        // 3. Mã hóa mật khẩu
+        String encodedPassword = passwordEncoder.encode(request.getPassword().trim());
+        staff.setPassword(encodedPassword);
+
+        // 4. Lưu xuống DB
+        staffRepository.save(staff);
+
+        return ResponseEntity.ok(Map.of("message", "Tạo tài khoản Nhân viên y tế thành công!"));
+    }
+
+    @PostMapping("/patient/register")
+    public ResponseEntity<?> registerPatient(@Valid @RequestBody PatientRegisterDTO request) {
         String phoneNumber = request.getPhoneNumber();
         String email = request.getEmail();
 
-        // 1. KIỂM TRA BẮT BUỘC PHẢI CÓ SỐ ĐIỆN THOẠI
-        if (phoneNumber == null || phoneNumber.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body("Số điện thoại là thông tin bắt buộc!");
-        }
-        phoneNumber = phoneNumber.trim();
-        boolean hasEmail = email != null && !email.trim().isEmpty();
-
-        // 2. KIỂM TRA TRÙNG LẶP TRONG DATABASE
+        // 1. KIỂM TRA TRÙNG LẶP SĐT / EMAIL
         if (patientRepository.findByPhoneNumber(phoneNumber).isPresent()) {
             return ResponseEntity.badRequest().body("Số điện thoại này đã được đăng ký tài khoản!");
         }
+        
+        boolean hasEmail = email != null && !email.trim().isEmpty();
         if (hasEmail) {
             email = email.trim();
             if (patientRepository.findByEmail(email).isPresent()) {
@@ -92,28 +115,29 @@ public class AuthController {
             }
         }
 
-        // 3. XÁC THỰC OTP NẾU NGƯỜI DÙNG CÓ NHẬP EMAIL
+        // 2. XÁC THỰC OTP NẾU NGƯỜI DÙNG CÓ NHẬP EMAIL
         if (hasEmail) {
             boolean isOtpValid = otpService.verifyOtp(email, request.getOtp());
             if (!isOtpValid) {
                 return ResponseEntity.badRequest().body("Mã OTP Email không chính xác hoặc đã hết hạn!");
             }
         } 
-        // LƯU Ý: Nếu không có Email, hệ thống ngầm hiểu Frontend đã xác thực SMS Firebase thành công.
 
-        // 4. TẠO ĐỐI TƯỢNG PATIENT MỚI VÀ MAP DỮ LIỆU
+        // 3. TẠO ĐỐI TƯỢNG PATIENT MỚI VÀ MAP DỮ LIỆU
         Patient patient = new Patient();
         patient.setFullName(request.getFullName());
         patient.setGender(request.getGender());
         patient.setDob(request.getDob());
         patient.setPhoneNumber(phoneNumber);
+        patient.setFaceImageUrl(request.getFaceImageUrl());
+        patient.setPatientCode(generatePatientCode());
         
         if (hasEmail) {
             patient.setEmail(email);
         }
 
-        // 5. MẬT KHẨU TỰ ĐỘNG CHÍNH LÀ SĐT (Mặc định cho dễ nhớ, đổi sau)
-        String encodedPassword = passwordEncoder.encode(phoneNumber);
+        // 4. MẬT KHẨU (Sử dụng mật khẩu do người dùng nhập từ DTO)
+        String encodedPassword = passwordEncoder.encode(request.getPassword().trim());
         patient.setPassword(encodedPassword);
 
         patientRepository.save(patient);
@@ -155,5 +179,16 @@ public class AuthController {
         }
 
         return ResponseEntity.ok("Thông tin hợp lệ, có thể đăng ký.");
+    }
+
+    private String generatePatientCode() {
+        // Lấy ID lớn nhất hiện tại trong DB
+        Integer maxId = patientRepository.findMaxPatientId();
+        
+        // Cộng thêm 1 cho người mới
+        int nextId = maxId + 1;
+        
+        // Format chuỗi: "BN" + 6 chữ số (nếu thiếu thì độn số 0 vào trước)
+        return String.format("BN%06d", nextId);
     }
 }
