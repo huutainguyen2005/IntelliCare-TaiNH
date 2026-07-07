@@ -7,7 +7,8 @@ import vn.edu.fpt.sba.intellicare.services.IDeviceService;
 
 @Service
 public class DeviceServiceImpl implements IDeviceService {
-    private DeviceRepository deviceRepository;
+
+    private final DeviceRepository deviceRepository;
 
     public DeviceServiceImpl(DeviceRepository deviceRepository) {
         this.deviceRepository = deviceRepository;

@@ -4,7 +4,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import vn.edu.fpt.sba.intellicare.dto.request.PatientRequestDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.PatientDetailResponseDTO;
-import vn.edu.fpt.sba.intellicare.dto.response.PatientResponseDTO; // Bạn nên có thêm DTO rút gọn
 import vn.edu.fpt.sba.intellicare.entities.Patient;
 
 import java.util.List;

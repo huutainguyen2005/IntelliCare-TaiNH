@@ -25,7 +25,7 @@ public class Patient {
     @Column(name = "patient_code", unique = true, nullable = false, length = 30)
     private String patientCode;
 
-    @Column(name = "phone_number", unique = true, nullable = true, length = 20)
+    @Column(name = "phone_number", unique = true, nullable = false, length = 10)
     private String phoneNumber;
 
     @Column(name = "email", unique = true, nullable = true, length = 100)

@@ -11,14 +11,19 @@ let recaptchaVerifierInstance: RecaptchaVerifier | null = null;
 
 export default function PatientRegistration() {
   const navigate = useNavigate();
+
+  // 1. TÁCH STATE CHO PHONE VÀ EMAIL
   const [formData, setFormData] = useState({
     fullName: "",
-    identifier: "", // Nhập được cả SĐT hoặc Email
+    phoneNumber: "", // Bắt buộc
+    email: "", // Tùy chọn
     dob: "",
     gender: "Nam",
   });
+
   const [otp, setOtp] = useState("");
   const [isOtpSent, setIsOtpSent] = useState(false);
+  const [sentTo, setSentTo] = useState(""); // Lưu lại đích đến để hiển thị thông báo
   const [confirmationResult, setConfirmationResult] =
     useState<ConfirmationResult | null>(null);
 
@@ -52,12 +57,10 @@ export default function PatientRegistration() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Hàm kiểm tra xem chuỗi nhập vào là Email hay Số điện thoại
   const isEmailFormat = (val: string) => {
     return val.includes("@");
   };
 
-  // Hàm định dạng số điện thoại sang chuẩn quốc tế (+84) cho Firebase
   const formatPhoneNumber = (phone: string) => {
     let formatted = phone.trim();
     if (formatted.startsWith("0")) {
@@ -70,76 +73,66 @@ export default function PatientRegistration() {
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const inputIdentifier = formData.identifier.trim();
+    const inputPhone = formData.phoneNumber.trim();
+    const inputEmail = formData.email.trim();
     const nameWords = formData.fullName.trim().split(/\s+/);
 
-    // 1. Validation định dạng dữ liệu ở Frontend trước
+    // 1. Validation Frontend
     if (nameWords.length < 2) {
-      return showModal(
-        "Vui lòng nhập ít nhất 2 từ (VD: Nguyễn An)!",
-        "warning",
-      );
+      return showModal("Vui lòng nhập ít nhất 2 từ cho Họ và tên!", "warning");
     }
-    if (
-      !isEmailFormat(inputIdentifier) &&
-      !inputIdentifier.match(/(0[3|5|7|8|9])+([0-9]{8})\b/)
-    ) {
-      return showModal(
-        "Số điện thoại không đúng định dạng Việt Nam!",
-        "warning",
-      );
+
+    // Tối ưu Regex kiểm tra SĐT Việt Nam
+    if (!inputPhone.match(/^0[35789][0-9]{8}$/)) {
+      return showModal("Số điện thoại không đúng định dạng!", "warning");
+    }
+    if (inputEmail && !isEmailFormat(inputEmail)) {
+      return showModal("Định dạng Email không hợp lệ!", "warning");
     }
 
     setLoading(true);
 
-    // 2. GỌI API BACKEND KIỂM TRA TRÙNG TÀI KHOẢN TRƯỚC KHI GỬI OTP
+    // 2. GỌI API BACKEND KIỂM TRA TRÙNG LẶP
     try {
-      await axiosClient.get(
-        `/auth/check-duplicate?identifier=${encodeURIComponent(inputIdentifier)}`,
-      );
+      const params = new URLSearchParams();
+      params.append("phoneNumber", inputPhone);
+      if (inputEmail) {
+        params.append("email", inputEmail);
+      }
+      await axiosClient.get(`/auth/check-duplicate?${params.toString()}`);
     } catch (error: any) {
-      console.error("Lỗi trùng lặp dữ liệu tài khoản:", error);
-      let errorMsg = "Thông tin liên hệ (SĐT/Email) này đã được sử dụng!";
-      if (error.response?.status === 409) {
+      console.error("Lỗi trùng lặp dữ liệu:", error);
+      let errorMsg = "Thông tin liên hệ này đã được sử dụng!";
+      if (error.response?.data) {
         errorMsg =
           typeof error.response.data === "string"
             ? error.response.data
             : error.response.data.message || errorMsg;
-      } else if (error.response?.data?.message) {
-        errorMsg = error.response.data.message;
       }
       setLoading(false);
-      return showModal(errorMsg, "warning"); // Kết thúc hàm luôn, KHÔNG kích hoạt gửi OTP
+      return showModal(errorMsg, "warning");
     }
 
-    // 3. TIẾN HÀNH GỬI OTP KHI THÔNG TIN HỢP LỆ
-    if (isEmailFormat(inputIdentifier)) {
-      // === CHẾ ĐỘ 1: GỬI OTP QUA EMAIL (Spring Boot SMTP) ===
+    // 3. LOGIC GỬI OTP (ƯU TIÊN EMAIL -> FIREBASE SMS)
+    if (inputEmail) {
+      // === CHẾ ĐỘ 1: GỬI QUA EMAIL ===
       try {
-        await axiosClient.post("/auth/send-otp", { email: inputIdentifier });
-
+        await axiosClient.post("/auth/send-otp", { email: inputEmail });
         setIsOtpSent(true);
-        setConfirmationResult(null); // Không dùng Firebase cho luồng Email
-        showModal(
-          "Mã OTP đã được gửi tới Email của bạn! Vui lòng kiểm tra hộp thư.",
-          "success",
-        );
+        setConfirmationResult(null);
+        setSentTo(inputEmail);
+        showModal("Mã OTP đã được gửi tới Email của bạn!", "success");
       } catch (error: any) {
         console.error(error);
-        let errorMsg =
-          "Không thể gửi OTP qua Email. Vui lòng kiểm tra lại hệ thống!";
-        if (error.response?.data) {
-          errorMsg =
-            typeof error.response.data === "string"
-              ? error.response.data
-              : error.response.data.message || errorMsg;
-        }
-        showModal(errorMsg, "error");
+        showModal(
+          "Không thể gửi OTP qua Email, vui lòng kiểm tra lại!",
+          "error",
+        );
       } finally {
         setLoading(false);
       }
     } else {
-      // === CHẾ ĐỘ 2: GỬI OTP QUA SỐ ĐIỆN THOẠI (Firebase SMS) ===
+      // === CHẾ ĐỘ 2: GỬI QUA SỐ ĐIỆN THOẠI (FIREBASE) ===
       try {
         if (!recaptchaVerifierInstance) {
           recaptchaVerifierInstance = new RecaptchaVerifier(
@@ -157,7 +150,7 @@ export default function PatientRegistration() {
           );
         }
 
-        const globalPhone = formatPhoneNumber(inputIdentifier);
+        const globalPhone = formatPhoneNumber(inputPhone);
         const confirmation = await signInWithPhoneNumber(
           auth,
           globalPhone,
@@ -166,13 +159,11 @@ export default function PatientRegistration() {
 
         setConfirmationResult(confirmation);
         setIsOtpSent(true);
-        showModal("Mã OTP đã được gửi về số điện thoại của bạn!", "success");
+        setSentTo(inputPhone);
+        showModal("Mã OTP đã được gửi về Số điện thoại của bạn!", "success");
       } catch (error) {
         console.error(error);
-        showModal(
-          "Không thể gửi OTP SMS. Vui lòng kiểm tra lại cấu hình mạng hoặc Firebase!",
-          "error",
-        );
+        showModal("Không thể gửi OTP SMS. Vui lòng kiểm tra lại!", "error");
         if (recaptchaVerifierInstance) {
           recaptchaVerifierInstance.clear();
           recaptchaVerifierInstance = null;
@@ -183,33 +174,32 @@ export default function PatientRegistration() {
     }
   };
 
-  // HÀM 2: XÁC THỰC MÃ OTP + ĐĂNG KÝ TÀI KHOẢN XUỐNG DATABASE
+  // HÀM 2: XÁC THỰC MÃ OTP + ĐĂNG KÝ
   const handleVerifyOtpAndRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otp) return showModal("Vui lòng nhập mã OTP!", "warning");
 
     setLoading(true);
     try {
-      const inputIdentifier = formData.identifier.trim();
+      const inputPhone = formData.phoneNumber.trim();
+      const inputEmail = formData.email.trim();
 
-      // 1. Nếu là Số điện thoại -> Xác thực mã trên Firebase Client trước
-      if (!isEmailFormat(inputIdentifier)) {
+      // 1. Xác thực Firebase nếu không có Email
+      if (!inputEmail) {
         if (!confirmationResult) {
-          return showModal(
-            "Hệ thống xác thực chưa sẵn sàng, vui lòng gửi lại mã!",
-            "error",
-          );
+          return showModal("Phiên xác thực lỗi, vui lòng gửi lại mã!", "error");
         }
         await confirmationResult.confirm(otp);
       }
 
-      // 2. Gửi gói tin Payload sang API Backend Spring Boot để hoàn tất lưu DB
+      // 2. Gom Payload đủ cả Phone và Email gửi xuống Backend
       const payload = {
         fullName: formData.fullName.trim(),
-        identifier: inputIdentifier,
+        phoneNumber: inputPhone,
+        email: inputEmail || null, // Truyền null nếu rỗng để Backend dễ xử lý
         dob: formData.dob,
         gender: formData.gender,
-        otp: otp, // Gửi kèm OTP để Backend tự verify nếu người dùng chọn luồng Email
+        otp: otp,
       };
 
       await axiosClient.post("/auth/register", payload);
@@ -219,8 +209,7 @@ export default function PatientRegistration() {
       });
     } catch (error: any) {
       console.error(error);
-      let errorMsg =
-        "Mã OTP không chính xác hoặc tài khoản đã tồn tại trên hệ thống!";
+      let errorMsg = "Mã OTP không chính xác hoặc đã hết hạn!";
       if (error.response?.data) {
         errorMsg =
           typeof error.response.data === "string"
@@ -244,7 +233,7 @@ export default function PatientRegistration() {
         >
           {!isOtpSent ? (
             <>
-              <label style={styles.infoLabel}>Họ và tên</label>
+              <label style={styles.infoLabel}>Họ và tên *</label>
               <input
                 style={styles.inputField}
                 name="fullName"
@@ -254,17 +243,28 @@ export default function PatientRegistration() {
                 onChange={handleChange}
               />
 
-              <label style={styles.infoLabel}>Số điện thoại hoặc Email</label>
+              {/* Tách riêng Số điện thoại (Bắt buộc) */}
+              <label style={styles.infoLabel}>Số điện thoại *</label>
               <input
                 style={styles.inputField}
-                name="identifier"
-                value={formData.identifier}
-                placeholder="Nhập SĐT hoặc Email của bạn..."
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                placeholder="Nhập số điện thoại (Bắt buộc)"
                 required
                 onChange={handleChange}
               />
 
-              <label style={styles.infoLabel}>Ngày sinh</label>
+              {/* Tách riêng Email (Tùy chọn) */}
+              <label style={styles.infoLabel}>Email (Tùy chọn)</label>
+              <input
+                style={styles.inputField}
+                name="email"
+                value={formData.email}
+                placeholder="Nhập Email để nhận mã ưu tiên"
+                onChange={handleChange}
+              />
+
+              <label style={styles.infoLabel}>Ngày sinh *</label>
               <input
                 style={styles.inputField}
                 name="dob"
@@ -276,7 +276,7 @@ export default function PatientRegistration() {
                 onChange={handleChange}
               />
 
-              <label style={styles.infoLabel}>Giới tính</label>
+              <label style={styles.infoLabel}>Giới tính *</label>
               <select
                 style={styles.inputField}
                 name="gender"
@@ -305,7 +305,7 @@ export default function PatientRegistration() {
                     lineHeight: "1.6",
                   }}
                 >
-                  Mã xác thực OTP đã được gửi tới địa chỉ: <br />
+                  Mã xác thực OTP đã được gửi tới: <br />
                   <b
                     style={{
                       color: "#0d9488",
@@ -313,7 +313,7 @@ export default function PatientRegistration() {
                       wordBreak: "break-all",
                     }}
                   >
-                    {formData.identifier}
+                    {sentTo}
                   </b>
                 </p>
                 <button
@@ -321,7 +321,7 @@ export default function PatientRegistration() {
                   onClick={() => setIsOtpSent(false)}
                   style={styles.btnLink}
                 >
-                  Thay đổi thông tin kết nối khác?
+                  Thay đổi thông tin?
                 </button>
               </div>
 
@@ -341,7 +341,7 @@ export default function PatientRegistration() {
                 disabled={loading}
                 style={styles.btnPrimary}
               >
-                {loading ? "ĐANG XÁC MINH..." : "XÁC NHẬN & TIẾN HÀNH ĐO CÂN"}
+                {loading ? "ĐANG XÁC MINH..." : "XÁC NHẬN ĐĂNG KÝ"}
               </button>
             </>
           )}
@@ -354,20 +354,19 @@ export default function PatientRegistration() {
         type={modalConfig.type}
         onClose={handleCloseModal}
       />
-
       <div id="recaptcha-container"></div>
     </div>
   );
 }
 
-// HỆ THỐNG PHONG CÁCH MÀU XANH NGỌC ĐỒNG NHẤT HỆ THỐNG
+// BỘ STYLE MÀU XANH NGỌC GIỮ NGUYÊN BÊN DƯỚI
 const styles: Record<string, React.CSSProperties> = {
   appContainer: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
     minHeight: "calc(100vh - 80px)",
-    backgroundColor: "#f0fdfa", // Nền xanh ngọc nhạt dịu mắt
+    backgroundColor: "#f0fdfa",
     padding: "20px",
     fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
   },
@@ -375,16 +374,16 @@ const styles: Record<string, React.CSSProperties> = {
     width: "100%",
     maxWidth: "480px",
     backgroundColor: "#ffffff",
-    borderRadius: "24px", // Bo tròn mịn màng đồng nhất Profile
+    borderRadius: "24px",
     padding: "40px 35px",
     boxShadow:
-      "0 10px 25px -5px rgba(13, 148, 136, 0.1), 0 8px 10px -6px rgba(13, 148, 136, 0.1)", // Shadow ám xanh ngọc nhẹ công nghệ
+      "0 10px 25px -5px rgba(13, 148, 136, 0.1), 0 8px 10px -6px rgba(13, 148, 136, 0.1)",
     border: "1px solid #ccfbf1",
   },
   appTitle: {
     fontSize: "24px",
     fontWeight: 800,
-    color: "#0d9488", // Chuẩn xanh ngọc đậm IntelliCare
+    color: "#0d9488",
     textAlign: "center",
     marginBottom: "30px",
     letterSpacing: "0.5px",
@@ -428,7 +427,7 @@ const styles: Record<string, React.CSSProperties> = {
   btnPrimary: {
     width: "100%",
     padding: "14px",
-    backgroundColor: "#0d9488", // Nền nút xanh ngọc thương hiệu
+    backgroundColor: "#0d9488",
     color: "#ffffff",
     border: "none",
     borderRadius: "12px",

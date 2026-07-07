@@ -7,18 +7,17 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
+import lombok.RequiredArgsConstructor;
+
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class JwtService {
 
     private final JwtEncoder jwtEncoder;
-
-    public JwtService(JwtEncoder jwtEncoder) {
-        this.jwtEncoder = jwtEncoder;
-    }
 
     public String generateToken(String subject, String role) {
         Instant now = Instant.now();

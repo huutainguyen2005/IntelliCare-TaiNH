@@ -146,7 +146,7 @@ export default function Scanner() {
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const phoneRegex = /^0(3[2-9]|5[68]|7[06789]|8[1-9]|9\d)\d{7}$/;
+    const phoneRegex = /^0(3[2-9]|5[25689]|7[06789]|8[1-9]|9\d)\d{7}$/;
     if (!phoneRegex.test(phoneNumber)) {
       return showModal("Số điện thoại không hợp lệ!", "warning");
     }

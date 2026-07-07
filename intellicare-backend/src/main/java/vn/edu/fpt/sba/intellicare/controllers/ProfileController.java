@@ -5,6 +5,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import lombok.RequiredArgsConstructor;
 import vn.edu.fpt.sba.intellicare.dto.response.UserProfileDTO;
 import vn.edu.fpt.sba.intellicare.entities.Patient;
 import vn.edu.fpt.sba.intellicare.entities.Staff;
@@ -16,15 +18,11 @@ import java.util.Comparator;
 
 @RestController
 @RequestMapping("/profile")
+@RequiredArgsConstructor
 public class ProfileController {
 
     private final PatientRepository patientRepository;
     private final StaffRepository staffRepository;
-
-    public ProfileController(PatientRepository patientRepository, StaffRepository staffRepository) {
-        this.patientRepository = patientRepository;
-        this.staffRepository = staffRepository;
-    }
 
     @GetMapping("/me")
     public ResponseEntity<?> getMyProfile(Authentication authentication) {

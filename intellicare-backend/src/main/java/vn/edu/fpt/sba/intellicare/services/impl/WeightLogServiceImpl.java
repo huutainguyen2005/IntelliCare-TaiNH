@@ -1,6 +1,8 @@
 package vn.edu.fpt.sba.intellicare.services.impl;
 
 import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 import vn.edu.fpt.sba.intellicare.dto.response.WeightLogResponseDTO;
 import vn.edu.fpt.sba.intellicare.entities.WeightLog;
 import vn.edu.fpt.sba.intellicare.repositories.WeightLogRepository;
@@ -11,12 +13,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class WeightLogServiceImpl implements IWeightLogService {
+    
     private final WeightLogRepository weightLogRepository;
-
-    public WeightLogServiceImpl(WeightLogRepository weightLogRepository) {
-        this.weightLogRepository = weightLogRepository;
-    }
 
     @Override
     public List<WeightLogResponseDTO> getLogsByPatientId(Integer patientId) {

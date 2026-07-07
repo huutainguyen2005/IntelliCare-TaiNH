@@ -3,6 +3,8 @@ package vn.edu.fpt.sba.intellicare.controllers;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import lombok.RequiredArgsConstructor;
 import vn.edu.fpt.sba.intellicare.dto.response.WeightLogResponseDTO;
 import vn.edu.fpt.sba.intellicare.entities.Patient;
 import vn.edu.fpt.sba.intellicare.repositories.PatientRepository;
@@ -12,15 +14,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/weight-logs")
+@RequiredArgsConstructor
 public class WeightLogController {
 
     private final IWeightLogService weightLogService;
     private final PatientRepository patientRepository;
-
-    public WeightLogController(IWeightLogService weightLogService, PatientRepository patientRepository) {
-        this.weightLogService = weightLogService;
-        this.patientRepository = patientRepository;
-    }
 
     /**
      * API dành cho Bệnh nhân tự xem lịch sử đo cân nặng của chính mình

@@ -10,7 +10,7 @@ public class PatientRequestDTO {
 
 
     @NotBlank(message = "Số điện thoại không được để trống")
-    @Pattern(regexp = "^0(3[2-9]|5[68]|7[06789]|8[1-9]|9\\d)\\d{7}$", message = "Số điện thoại không hợp lệ")
+    @Pattern(regexp = "^0(3[2-9]|5[25689]|7[06789]|8[1-9]|9\\d)\\d{7}$", message = "Số điện thoại không hợp lệ")
     private String phoneNumber;
 
     // Thêm trường password

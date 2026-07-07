@@ -1,6 +1,8 @@
 package vn.edu.fpt.sba.intellicare.services.impl;
 
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import vn.edu.fpt.sba.intellicare.dto.response.MeasurementSessionResponseDTO;
 import vn.edu.fpt.sba.intellicare.entities.Device;
@@ -21,22 +23,14 @@ import java.time.format.DateTimeParseException;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class MeasurementSessionServiceImpl implements IMeasurementSessionService {
+   
     private final MeasurementSessionRepository measurementSessionRepository;
     private final WeightLogRepository weightLogRepository;
     private final PatientRepository patientRepository;
     private final DeviceRepository deviceRepository;
 
-    public MeasurementSessionServiceImpl(
-            MeasurementSessionRepository measurementSessionRepository,
-            WeightLogRepository weightLogRepository,
-            PatientRepository patientRepository,
-            DeviceRepository deviceRepository) {
-        this.measurementSessionRepository = measurementSessionRepository;
-        this.weightLogRepository = weightLogRepository;
-        this.patientRepository = patientRepository;
-        this.deviceRepository = deviceRepository;
-    }
 
     @Override
     public void initSession(Integer patientId, String deviceId) {

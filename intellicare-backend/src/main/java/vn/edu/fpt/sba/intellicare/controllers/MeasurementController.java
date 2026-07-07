@@ -18,18 +18,12 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/measurements")
+@RequiredArgsConstructor
 public class MeasurementController {
 
     private final IMeasurementSessionService measurementService;
     private final PatientRepository patientRepository;
     private final DeviceRepository deviceRepository;
-
-    public MeasurementController(IMeasurementSessionService measurementService, PatientRepository patientRepository,
-            DeviceRepository deviceRepository) {
-        this.measurementService = measurementService;
-        this.patientRepository = patientRepository;
-        this.deviceRepository = deviceRepository;
-    }
 
     @PostMapping("/start")
     public ResponseEntity<String> initSession(@RequestBody QrScanRequestDTO request) {

@@ -1,6 +1,8 @@
 package vn.edu.fpt.sba.intellicare.controllers;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -10,20 +12,16 @@ import vn.edu.fpt.sba.intellicare.dto.request.PatientRequestDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.PageResponseDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.PatientDetailResponseDTO;
 import vn.edu.fpt.sba.intellicare.entities.Patient;
-import vn.edu.fpt.sba.intellicare.repositories.PatientRepository;
 import vn.edu.fpt.sba.intellicare.services.IPatientService;
-import vn.edu.fpt.sba.intellicare.services.impl.PatientServiceImpl;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/patients")
+@RequiredArgsConstructor
 public class PatientController {
-    private IPatientService patientService;
-
-    public PatientController(IPatientService patientService) {
-        this.patientService = patientService;
-    }
+    
+    private final IPatientService patientService;
 
     @GetMapping("")
     public PageResponseDTO<PatientDetailResponseDTO> artistList(

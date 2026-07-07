@@ -1,12 +1,13 @@
 package vn.edu.fpt.sba.intellicare.services.impl;
 
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import vn.edu.fpt.sba.intellicare.dto.request.PatientRequestDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.PatientDetailResponseDTO;
-import vn.edu.fpt.sba.intellicare.dto.response.PatientResponseDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.WeightLogResponseDTO;
 import vn.edu.fpt.sba.intellicare.entities.Patient;
 import vn.edu.fpt.sba.intellicare.repositories.PatientRepository;
@@ -16,12 +17,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class PatientServiceImpl implements IPatientService {
-    private PatientRepository patientRepository;
-
-    public PatientServiceImpl(PatientRepository patientRepository) {
-        this.patientRepository = patientRepository;
-    }
+    
+    private final PatientRepository patientRepository;
 
     @Override
     public List<PatientDetailResponseDTO> findAll() {

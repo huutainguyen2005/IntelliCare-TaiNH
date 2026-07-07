@@ -12,8 +12,10 @@ public class RegisterRequestDTO {
     @NotNull(message = "Ngày sinh không được để trống")
     private LocalDate dob;
 
-    @NotBlank(message = "Vui lòng nhập số điện thoại hoặc email")
-    private String identifier;
+    @NotBlank(message = "Số điện thoại không được để trống")
+    private String phoneNumber;
+
+    private String email;
 
     @NotBlank(message = "Giới tính không được để trống")
     private String gender;
@@ -28,8 +30,11 @@ public class RegisterRequestDTO {
     public LocalDate getDob() { return dob; }
     public void setDob(LocalDate dob) { this.dob = dob; }
 
-    public String getIdentifier() { return identifier; }
-    public void setIdentifier(String identifier) { this.identifier = identifier; }
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
