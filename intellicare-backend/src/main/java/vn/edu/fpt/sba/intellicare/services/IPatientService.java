@@ -2,7 +2,7 @@ package vn.edu.fpt.sba.intellicare.services;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import vn.edu.fpt.sba.intellicare.dto.request.PatientRequestDTO;
+import vn.edu.fpt.sba.intellicare.dto.request.PatientRegisterDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.PatientDetailResponseDTO;
 import vn.edu.fpt.sba.intellicare.entities.Patient;
 
@@ -17,7 +17,7 @@ public interface IPatientService {
     PatientDetailResponseDTO findById(Integer id);
 
     // Lưu và Cập nhật trả về DTO hoặc Entity tùy bạn, ở đây tôi để Entity
-    Patient save(PatientRequestDTO patientInput);
+    Patient save(PatientRegisterDTO patientInput);
     Patient update(Integer id, Patient patientInput);
 
     void delete(Integer id);

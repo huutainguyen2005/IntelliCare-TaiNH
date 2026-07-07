@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import vn.edu.fpt.sba.intellicare.dto.request.PatientRequestDTO;
+import vn.edu.fpt.sba.intellicare.dto.request.PatientRegisterDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.PatientDetailResponseDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.WeightLogResponseDTO;
 import vn.edu.fpt.sba.intellicare.entities.Patient;
@@ -34,7 +34,7 @@ public class PatientServiceImpl implements IPatientService {
     }
     @Transactional
     @Override
-    public Patient save(PatientRequestDTO request) {
+    public Patient save(PatientRegisterDTO request) {
 
         if (patientRepository.existsByPhoneNumber(request.getPhoneNumber())) {
             throw new RuntimeException("Duplicate phone number: Số điện thoại này đã tồn tại trong hệ thống");

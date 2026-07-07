@@ -15,8 +15,6 @@ public class PatientRegisterDTO {
     @Email(message = "Email không hợp lệ")
     private String email;
 
-    @NotBlank(message = "Mật khẩu không được để trống")
-    @Size(min = 6, message = "Mật khẩu phải có ít nhất 6 ký tự")
     private String password;
 
     @NotBlank(message = "Họ tên không được để trống")
@@ -29,7 +27,11 @@ public class PatientRegisterDTO {
 
     private String gender;
 
-    private String faceImageUrl;
+    private String idCard;
 
+    private String address;
+
+    private String faceImageUrl;
+    
     private String otp;
 }

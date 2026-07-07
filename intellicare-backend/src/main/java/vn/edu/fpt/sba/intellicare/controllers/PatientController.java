@@ -8,7 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import vn.edu.fpt.sba.intellicare.dto.request.PatientRequestDTO;
+import vn.edu.fpt.sba.intellicare.dto.request.PatientRegisterDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.PageResponseDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.PatientDetailResponseDTO;
 import vn.edu.fpt.sba.intellicare.entities.Patient;
@@ -41,7 +41,7 @@ public class PatientController {
     }
 
     @PostMapping("/")
-    public Patient createPatient(@Valid @RequestBody PatientRequestDTO request) {
+    public Patient createPatient(@Valid @RequestBody PatientRegisterDTO request) {
         return patientService.save(request);
     }
 

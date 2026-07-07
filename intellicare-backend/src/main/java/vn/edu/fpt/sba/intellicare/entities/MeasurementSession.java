@@ -28,6 +28,7 @@ public class MeasurementSession {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)
     private SessionStatus status = SessionStatus.Pending;
+    
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 }
