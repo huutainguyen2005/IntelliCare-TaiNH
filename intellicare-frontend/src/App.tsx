@@ -6,6 +6,7 @@ import Profile from "./pages/Profile";
 import Navbar from "./components/Navbar";
 import StaffDashboard from "./pages/StaffDashboard";
 import PatientDetail from "./pages/PatientDetail";
+import PatientActivation from "./pages/PatientActivation"; 
 
 function App() {
   const { isAuthenticated, user } = useCustomAuth();
@@ -18,6 +19,7 @@ function App() {
         <Route path="/" element={<Navigate to="/register" replace />} />
         <Route path="/scanner" element={<Scanner />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/activate" element={<PatientActivation />} />
 
         <Route
           path="/profile"

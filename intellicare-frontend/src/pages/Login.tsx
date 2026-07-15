@@ -156,6 +156,7 @@ const Login: React.FC = () => {
             {isLoading ? "ĐANG XỬ LÝ..." : "ĐĂNG NHẬP"}
           </button>
         </form>
+        {errorMsg && <div style={{ color: "red", marginTop: "10px" }}>{errorMsg}</div>}
       </div>
     </div>
   );
