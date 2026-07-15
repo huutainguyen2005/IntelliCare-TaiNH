@@ -230,6 +230,72 @@ public class AuthController {
         return ResponseEntity.ok("Thông tin hợp lệ, có thể đăng ký.");
     }
 
+    // API KIỂM TRA CCCD & NGÀY SINH (Bước 1 lúc Kích hoạt)
+    @PostMapping("/patient/verify-activation")
+    public ResponseEntity<?> verifyActivation(@RequestBody Map<String, String> request) {
+        String idCard = request.get("idCard");
+        String dobStr = request.get("dob");
+
+        if (idCard == null || dobStr == null) {
+            return ResponseEntity.badRequest().body("Vui lòng nhập đầy đủ CCCD và Ngày sinh!");
+        }
+
+        Patient patient = patientRepository.findByIdCard(idCard).orElse(null);
+        if (patient == null) {
+            return ResponseEntity.badRequest().body("Không tìm thấy hồ sơ y tế với số CCCD này. Bạn cần đo tại Kiosk trước!");
+        }
+
+        if (AccountStatus.ACTIVE.equals(patient.getAccountStatus())) {
+            return ResponseEntity.badRequest().body("Tài khoản của bạn đã được kích hoạt. Vui lòng quay lại trang Đăng nhập!");
+        }
+
+        if (patient.getDob() == null || !patient.getDob().toString().equals(dobStr)) {
+            return ResponseEntity.badRequest().body("Ngày sinh xác thực không chính xác!");
+        }
+
+        return ResponseEntity.ok(Map.of(
+            "message", "Xác minh hợp lệ",
+            "fullName", patient.getFullName(),
+            "patientCode", patient.getPatientCode()
+        ));
+    }
+
+    // API KÍCH HOẠT TÀI KHOẢN CHÍNH THỨC (Bước 2)
+    @PostMapping("/patient/activate")
+    public ResponseEntity<?> activatePatient(@Valid @RequestBody vn.edu.fpt.sba.intellicare.dto.request.PatientActivationRequestDTO request) {
+        Patient patient = patientRepository.findByIdCard(request.getIdCard())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hồ sơ bệnh nhân!"));
+
+        if (AccountStatus.ACTIVE.equals(patient.getAccountStatus())) {
+            return ResponseEntity.badRequest().body("Tài khoản đã được kích hoạt trước đó!");
+        }
+
+        // Kiểm tra xem SĐT thật này đã có ai dùng chưa
+        java.util.Optional<Patient> existingPhone = patientRepository.findByPhoneNumber(request.getPhoneNumber().trim());
+        if (existingPhone.isPresent() && !existingPhone.get().getPatientId().equals(patient.getPatientId())) {
+            return ResponseEntity.badRequest().body("Số điện thoại này đã được sử dụng cho một hồ sơ khác!");
+        }
+
+        // Xác thực OTP (Nếu có Email thì kiểm tra OTP Email)
+        String email = request.getEmail();
+        boolean hasEmail = email != null && !email.trim().isEmpty();
+        if (hasEmail) {
+            if (!otpService.verifyOtp(email.trim(), request.getOtp())) {
+                return ResponseEntity.badRequest().body("Mã OTP Email không chính xác hoặc đã hết hạn!");
+            }
+            patient.setEmail(email.trim());
+        }
+
+        // Ghi đè SĐT thật, gán mật khẩu và kích hoạt
+        patient.setPhoneNumber(request.getPhoneNumber().trim());
+        patient.setPassword(passwordEncoder.encode(request.getPassword().trim()));
+        patient.setAccountStatus(AccountStatus.ACTIVE);
+        
+        patientRepository.save(patient);
+        
+        return ResponseEntity.ok(Map.of("message", "Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay."));
+    }
+
     private String generatePatientCode() {
         Integer maxId = patientRepository.findMaxPatientId();
         int nextId = maxId + 1;

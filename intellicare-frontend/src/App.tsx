@@ -18,10 +18,8 @@ function App() {
 
       <Routes>
         <Route path="/" element={<Navigate to="/register" replace />} />
-        <Route path="/register" element={<PatientRegistration />} />
         <Route path="/scanner" element={<Scanner />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/set-password" element={<SetPassword />} />
 
         <Route
           path="/profile"

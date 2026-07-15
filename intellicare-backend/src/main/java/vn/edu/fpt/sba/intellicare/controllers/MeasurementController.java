@@ -48,81 +48,77 @@ public class MeasurementController {
         }
     }
 
-    @PostMapping("/scan-qr")
+   @PostMapping("/scan-qr")
     public ResponseEntity<?> startSessionFromQr(@RequestBody Map<String, String> request) {
         try {
             String deviceId = request.get("deviceId");
             String rawQrData = request.get("rawQrData");
-
-            MeasurementSessionResponseDTO result = measurementService.startSessionFromQr(deviceId, rawQrData);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Lỗi khi xử lý mã QR: " + e.getMessage());
-        }
-    }
-
-    @PostMapping("/check-qr-auth")
-    public ResponseEntity<?> checkQrAndAuth(@RequestBody Map<String, String> request) {
-        try {
-            String deviceId = request.get("deviceId");
-            String rawQrData = request.get("rawQrData");
-
-            if (rawQrData == null) {
-                return ResponseEntity.badRequest().body("Không nhận được dữ liệu mã QR");
+            
+            if (rawQrData == null || rawQrData.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Không nhận được dữ liệu QR");
             }
 
-            // Xóa mọi khoảng trắng, ký tự ẩn, dấu xuống dòng ở 2 đầu
             String cleanData = rawQrData.trim().replaceAll("^[\\x00-\\x1F\\x7F]+|[\\x00-\\x1F\\x7F]+$", "");
-
-            System.out.println("========== DEBUG QUÉT QR ==========");
-            System.out.println("Dữ liệu gốc nhận được: [" + cleanData + "]");
-
-            // TÁCH CHUỖI AN TOÀN BẰNG REGEX (bỏ qua khoảng trắng vô tình lọt vào giữa các
-            // dấu |)
             String[] parts = cleanData.split("\\s*\\|\\s*");
-
-            System.out.println("Số lượng phần tử tách được: " + parts.length);
-
             if (parts.length < 7) {
-                return ResponseEntity.badRequest()
-                        .body("Mã QR thiếu trường thông tin (Chỉ tách được " + parts.length + " phần tử).");
+                return ResponseEntity.badRequest().body("Mã QR thiếu thông tin CCCD.");
             }
 
             String idCard = parts[0];
+            String fullName = parts[2];
+            String dobStr = parts[3]; 
+            String genderStr = parts[4];
+            String address = parts[5];
 
-            // TỰ ĐỘNG TẠO THIẾT BỊ NẾU CHƯA CÓ (Tránh lỗi 500 khi quét máy mới)
-            deviceRepository.findByDeviceId(deviceId)
+            // LẤY HOẶC TẠO DEVICE
+            Device device = deviceRepository.findByDeviceId(deviceId)
                     .orElseGet(() -> {
                         Device demoDevice = new Device();
                         demoDevice.setDeviceId(deviceId);
-                        demoDevice.setLocation("Trạm cân Demo");
+                        demoDevice.setLocation("Kiosk Thông Minh");
                         demoDevice.setStatus("Active");
                         return deviceRepository.save(demoDevice);
                     });
 
-            // KIỂM TRA BỆNH NHÂN TRONG DB
+            // TÌM HOẶC TẠO PATIENT TỪ CCCD (KHÔNG CẦN SĐT/EMAIL)
             Optional<Patient> patientOpt = patientRepository.findByIdCard(idCard);
-
-            if (patientOpt.isPresent()) {
-                // Bệnh nhân cũ -> Init phiên đo ngay lập tức
-                MeasurementSessionResponseDTO session = measurementService.initSessionForExistingPatient(deviceId,
-                        patientOpt.get());
-                System.out.println("-> Đã tạo phiên cho bệnh nhân CŨ.");
-                return ResponseEntity.ok(Map.of("isNew", false, "session", session));
+            Patient patient;
+            
+            if (patientOpt.isEmpty()) {
+                patient = new Patient();
+                // Lấy ID lớn nhất để tạo mã BN
+                Integer maxId = patientRepository.findMaxPatientId();
+                patient.setPatientCode(String.format("BN%06d", maxId + 1));
+                
+                patient.setIdCard(idCard);
+                patient.setFullName(fullName);
+                patient.setGender(genderStr);
+                patient.setAddress(address);
+                
+                // Gán tạm SĐT bằng CCCD để vượt qua Unique Constraint của Database
+                patient.setPhoneNumber("CCCD-" + idCard);
+                
+                // Trạng thái chờ kích hoạt ở nhà
+                patient.setAccountStatus(vn.edu.fpt.sba.intellicare.enums.AccountStatus.PENDING_PASSWORD);
+                
+                try {
+                    java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("ddMMyyyy");
+                    patient.setDob(java.time.LocalDate.parse(dobStr, formatter));
+                } catch (Exception e) {
+                    System.err.println("Không thể parse ngày sinh CCCD: " + dobStr);
+                }
+                
+                patient = patientRepository.save(patient);
             } else {
-                // Bệnh nhân mới -> Gửi data để Frontend hiện form OTP
-                System.out.println("-> Bệnh nhân MỚI. Yêu cầu frontend bật form OTP.");
-                return ResponseEntity.ok(Map.of(
-                        "isNew", true,
-                        "parsedData", Map.of(
-                                "idCard", idCard,
-                                "fullName", parts[2],
-                                "dob", parts[3],
-                                "gender", parts[4],
-                                "address", parts[5])));
+                patient = patientOpt.get();
             }
+
+            // KHỞI TẠO PHIÊN ĐO NGAY LẬP TỨC
+            MeasurementSessionResponseDTO session = measurementService.initSessionForExistingPatient(deviceId, patient);
+            
+            return ResponseEntity.ok(session);
+
         } catch (Exception e) {
-            System.err.println("LỖI CRITICAL TẠI BACKEND: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(500).body("Lỗi Server: " + e.getMessage());
         }
