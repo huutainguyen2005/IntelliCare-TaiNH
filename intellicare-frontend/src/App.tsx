@@ -1,13 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useCustomAuth } from "./context/AuthContext";
-import PatientRegistration from "./pages/PatientRegistration";
 import Scanner from "./pages/Scanner";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Navbar from "./components/Navbar";
 import StaffDashboard from "./pages/StaffDashboard";
 import PatientDetail from "./pages/PatientDetail";
-import SetPassword from "./pages/SetPassword";
 
 function App() {
   const { isAuthenticated, user } = useCustomAuth();
