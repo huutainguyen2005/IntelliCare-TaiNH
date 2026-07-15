@@ -16,7 +16,10 @@ function App() {
       <Navbar />
 
       <Routes>
-        <Route path="/" element={<Navigate to="/register" replace />} />
+      <Route 
+        path="/" 
+        element={isAuthenticated ? <Navigate to="/profile" replace /> : <Navigate to="/register" replace />} 
+      />
         <Route path="/scanner" element={<Scanner />} />
         <Route path="/login" element={<Login />} />
         <Route path="/activate" element={<PatientActivation />} />
