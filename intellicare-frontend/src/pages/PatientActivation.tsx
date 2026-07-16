@@ -1,164 +1,187 @@
-import { useState, useEffect } from "react";
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { useState } from "react";
 import axiosClient from "../api/axiosClient";
+import { useNavigate } from "react-router-dom";
 import Modal from "../components/Modal";
+import { auth } from "../api/firebaseConfig";
+import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
 
-export default function Scanner() {
-  const [patientName, setPatientName] = useState<string>("");
-  const [deviceId, setDeviceId] = useState("SCALE-DEMO-01");
-  const [status, setStatus] = useState<"IDLE" | "PENDING" | "COMPLETED">("IDLE");
-  const [weightResult, setWeightResult] = useState<string | null>(null);
-  
-  const [modalConfig, setModalConfig] = useState({ isOpen: false, message: "", type: "warning" as "success" | "error" | "warning" });
+let recaptchaVerifierInstance: RecaptchaVerifier | null = null;
 
-  const showModal = (message: string, type: "success" | "error" | "warning") => {
-    setModalConfig({ isOpen: true, message, type });
+export default function PatientActivation() {
+  const navigate = useNavigate();
+
+  // State quản lý luồng
+  const [step, setStep] = useState<1 | 2>(1);
+  const [loading, setLoading] = useState(false);
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+
+  // State dữ liệu
+  const [patientInfo, setPatientInfo] = useState({ fullName: "", patientCode: "" });
+  const [formData, setFormData] = useState({
+    idCard: "",
+    dob: "",
+    phoneNumber: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    otp: "",
+  });
+
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, message: "", type: "warning" as "success" | "error" | "warning", onConfirm: undefined as any });
+  const showModal = (message: string, type: "success" | "error" | "warning", onConfirm?: () => void) => setModalConfig({ isOpen: true, message, type, onConfirm });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 1. KHỞI TẠO CAMERA QUÉT MÃ VẠCH / QR CCCD
-  useEffect(() => {
-    if (status !== "IDLE") return;
-
-    const scanner = new Html5QrcodeScanner(
-      "reader",
-      {
-        fps: 25,
-        qrbox: { width: 300, height: 300 },
-        aspectRatio: 1.0,
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-        videoConstraints: {
-          facingMode: "environment", // Dùng camera sau của điện thoại để test
-          advanced: [{ focusMode: "continuous" } as any],
-        },
-      },
-      false
-    );
-
-    scanner.render(
-      async (decodedText) => {
-        scanner.clear(); // Tắt camera ngay sau khi quét thành công
-        
-        try {
-          // GỌI API MỚI: Truyền thẳng rawData xuống, Backend tự lo mọi thứ
-          const response = await axiosClient.post("/api/measurements/scan-qr", {
-            deviceId: deviceId,
-            rawQrData: decodedText,
-          });
-
-          // Backend trả về session đã khởi tạo
-          setPatientName(response.data.patientName);
-          setStatus("PENDING"); // Chuyển sang trạng thái chờ cân điện tử
-
-        } catch (error: any) {
-          showModal(error.response?.data || "Lỗi khi xử lý dữ liệu CCCD!", "error");
-          setStatus("IDLE");
-        }
-      },
-      (_error) => {} // Bỏ qua các lỗi khung hình không tìm thấy QR
-    );
-
-    return () => {
-      scanner.clear().catch((e) => console.error(e));
-    };
-  }, [status, deviceId]);
-
-  // LẮNG NGHE KẾT QUẢ TỪ CÂN ĐIỆN TỬ (POLLING)
-  useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval> | undefined;
-
-    if (status === "PENDING") {
-      intervalId = setInterval(async () => {
-        try {
-          const response = await axiosClient.get(`/api/measurements/result?deviceId=${deviceId}`);
-          if (response.data.status === "Completed") {
-            setStatus("COMPLETED");
-            setWeightResult(response.data.weightKg + " kg");
-          }
-        } catch (error) {
-          console.error("Đang chờ dữ liệu từ cân IoT...");
-        }
-      }, 2000); // Hỏi server mỗi 2 giây
+  // ==========================================
+  // BƯỚC 1: XÁC MINH CCCD & NGÀY SINH
+  // ==========================================
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await axiosClient.post("/auth/patient/verify-activation", {
+        idCard: formData.idCard,
+        dob: formData.dob,
+      });
+      setPatientInfo({ fullName: res.data.fullName, patientCode: res.data.patientCode });
+      setStep(2); // Chuyển sang bước nhập SĐT/Pass
+    } catch (error: any) {
+      showModal(error.response?.data || "Không tìm thấy hồ sơ!", "error");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [status, deviceId]);
+  // ==========================================
+  // BƯỚC 2.1: GỬI OTP (EMAIL HOẶC SMS)
+  // ==========================================
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.password.length < 6) return showModal("Mật khẩu phải từ 6 ký tự!", "warning");
+    if (formData.password !== formData.confirmPassword) return showModal("Mật khẩu xác nhận không khớp!", "warning");
+    
+    setLoading(true);
+    try {
+      if (formData.email) {
+        // Gửi OTP Email
+        await axiosClient.post("/auth/send-otp", { email: formData.email });
+        setIsOtpSent(true);
+        showModal("Đã gửi mã OTP vào Email của bạn!", "success");
+      } else {
+        // Gửi OTP SMS Firebase
+        if (!recaptchaVerifierInstance) {
+          recaptchaVerifierInstance = new RecaptchaVerifier(auth, "recaptcha-container", { size: "invisible" });
+        }
+        let phone = formData.phoneNumber.trim();
+        if (phone.startsWith("0")) phone = "+84" + phone.substring(1);
+        
+        const confirmation = await signInWithPhoneNumber(auth, phone, recaptchaVerifierInstance);
+        setConfirmationResult(confirmation);
+        setIsOtpSent(true);
+        showModal("Đã gửi mã OTP vào Số điện thoại!", "success");
+      }
+    } catch (error: any) {
+      showModal(error.response?.data || "Lỗi gửi mã OTP!", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==========================================
+  // BƯỚC 2.2: XÁC NHẬN OTP & KÍCH HOẠT
+  // ==========================================
+  const handleActivate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.otp) return showModal("Vui lòng nhập OTP!", "warning");
+    setLoading(true);
+    try {
+      if (!formData.email && confirmationResult) {
+        await confirmationResult.confirm(formData.otp); // Check SMS OTP
+      }
+
+      await axiosClient.post("/auth/patient/activate", formData);
+      showModal("Kích hoạt thành công! Vui lòng đăng nhập.", "success", () => navigate("/login"));
+    } catch (error: any) {
+      showModal(error.response?.data || "OTP không hợp lệ hoặc kích hoạt thất bại!", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={styles.appContainer}>
       <div style={styles.card}>
-        <h2 style={styles.appTitle}>TRẠM ĐO THÔNG MINH</h2>
-        
-        {patientName && (
-          <div style={styles.alertBox}>
-            Bệnh nhân: <strong style={{ color: "#0f766e" }}>{patientName}</strong>
-          </div>
-        )}
+        <h2 style={styles.appTitle}>KÍCH HOẠT HỒ SƠ Y TẾ</h2>
 
-        {/* TRẠNG THÁI 1: CHỜ QUÉT CCCD */}
-        {status === "IDLE" && (
-          <>
-            <div style={styles.configSection}>
-              <p style={styles.configLabel}>Đưa mã QR trên CCCD vào khung hình</p>
-              <div id="reader" style={{ width: "100%", overflow: "hidden", borderRadius: "10px", margin: "0 auto" }}></div>
-            </div>
-            
-            <div style={{ marginTop: "15px" }}>
-              <p style={{ ...styles.configLabel, fontSize: "12px" }}>Mã thiết bị Test</p>
-              <input style={{ ...styles.inputField, padding: "6px", fontSize: "14px" }} value={deviceId} onChange={(e) => setDeviceId(e.target.value)} />
-            </div>
-          </>
-        )}
-
-        {/* TRẠNG THÁI 2: ĐÃ QUÉT XONG - CHỜ BƯỚC LÊN CÂN */}
-        {status === "PENDING" && (
-          <div style={styles.pendingCard}>
-            <div style={styles.pulseSpinner}></div>
-            <h3 style={{ color: "#0d9488", fontSize: "18px", margin: "15px 0 5px 0" }}>ĐÃ KẾT NỐI</h3>
-            <p style={{ color: "#64748b", fontSize: "14px" }}>Vui lòng bước lên cân để đo...</p>
-          </div>
-        )}
-
-        {/* TRẠNG THÁI 3: CÓ KẾT QUẢ TỪ IOT */}
-        {status === "COMPLETED" && (
-          <div style={styles.completedCard}>
-            <h2 style={{ fontSize: "14px", color: "#15803d", letterSpacing: "1px", margin: "0 0 10px 0" }}>KẾT QUẢ ĐO</h2>
-            <div style={styles.weightDisplay}>{weightResult}</div>
-            
-            <button
-              onClick={() => {
-                setStatus("IDLE");
-                setPatientName("");
-                setWeightResult(null);
-              }}
-              style={styles.btnSuccess}
-            >
-              QUÉT BỆNH NHÂN TIẾP THEO
-            </button>
-            <p style={{marginTop: "15px", fontSize: "13px", color: "#64748b"}}>
-              *Kết quả đã được đồng bộ. Quý khách có thể xem lại tại Website.
+        {step === 1 && (
+          <form onSubmit={handleVerify} style={{ display: "flex", flexDirection: "column" }}>
+            <p style={{ textAlign: "center", color: "#64748b", marginBottom: "20px", fontSize: "14px" }}>
+              Dành cho bệnh nhân đã đo tại Kiosk thông minh nhưng chưa kích hoạt tài khoản Online.
             </p>
-          </div>
+            <label style={styles.infoLabel}>Số CCCD *</label>
+            <input style={styles.inputField} name="idCard" placeholder="Nhập số thẻ CCCD đã quét" required value={formData.idCard} onChange={handleChange} />
+
+            <label style={styles.infoLabel}>Ngày sinh *</label>
+            <input style={styles.inputField} name="dob" type="date" required value={formData.dob} onChange={handleChange} />
+
+            <button type="submit" disabled={loading} style={styles.btnPrimary}>
+              {loading ? "ĐANG TÌM KIẾM..." : "TÌM HỒ SƠ"}
+            </button>
+          </form>
+        )}
+
+        {step === 2 && (
+          <form onSubmit={!isOtpSent ? handleSendOtp : handleActivate} style={{ display: "flex", flexDirection: "column" }}>
+            <div style={styles.alertBox}>
+              Xin chào <b>{patientInfo.fullName}</b>! Vui lòng cập nhật thông tin để bảo vệ hồ sơ của bạn.
+            </div>
+
+            {!isOtpSent ? (
+              <>
+                <label style={styles.infoLabel}>Số điện thoại chính *</label>
+                <input style={styles.inputField} name="phoneNumber" placeholder="VD: 0912345678" required value={formData.phoneNumber} onChange={handleChange} />
+
+                <label style={styles.infoLabel}>Email (Tùy chọn)</label>
+                <input style={styles.inputField} name="email" placeholder="Nhập để nhận mã qua email" value={formData.email} onChange={handleChange} />
+
+                <label style={styles.infoLabel}>Mật khẩu mới *</label>
+                <input style={styles.inputField} name="password" type="password" placeholder="Ít nhất 6 ký tự" required value={formData.password} onChange={handleChange} />
+
+                <label style={styles.infoLabel}>Xác nhận mật khẩu *</label>
+                <input style={styles.inputField} name="confirmPassword" type="password" placeholder="Nhập lại mật khẩu" required value={formData.confirmPassword} onChange={handleChange} />
+
+                <button type="submit" disabled={loading} style={styles.btnPrimary}>
+                  {loading ? "ĐANG XỬ LÝ..." : "NHẬN MÃ KÍCH HOẠT"}
+                </button>
+              </>
+            ) : (
+              <>
+                <label style={styles.infoLabel}>Nhập mã OTP (6 số) *</label>
+                <input style={styles.otpInputField} name="otp" type="text" maxLength={6} required value={formData.otp} onChange={(e) => setFormData({...formData, otp: e.target.value.replace(/\D/g, "")})} />
+                <button type="submit" disabled={loading} style={styles.btnPrimary}>
+                  {loading ? "ĐANG XÁC THỰC..." : "HOÀN TẤT KÍCH HOẠT"}
+                </button>
+              </>
+            )}
+          </form>
         )}
       </div>
-
-      <Modal isOpen={modalConfig.isOpen} message={modalConfig.message} type={modalConfig.type} onClose={() => setModalConfig({ ...modalConfig, isOpen: false })} />
+      <Modal {...modalConfig} onClose={() => { setModalConfig({ ...modalConfig, isOpen: false }); if (modalConfig.onConfirm) modalConfig.onConfirm(); }} />
+      <div id="recaptcha-container"></div>
     </div>
   );
 }
 
 const styles = {
   appContainer: { display: "flex", justifyContent: "center", alignItems: "center", minHeight: "calc(100vh - 80px)", backgroundColor: "#f0fdfa", padding: "20px", fontFamily: "'Segoe UI', Roboto, sans-serif" },
-  card: { width: "100%", maxWidth: "460px", backgroundColor: "#ffffff", borderRadius: "24px", padding: "35px", boxShadow: "0 10px 25px -5px rgba(13, 148, 136, 0.08)", border: "1px solid #ccfbf1", textAlign: "center" },
-  appTitle: { fontSize: "22px", fontWeight: 800, color: "#0d9488", marginBottom: "20px", letterSpacing: "0.5px" },
-  alertBox: { backgroundColor: "#ccfbf1", color: "#115e59", padding: "14px", borderRadius: "14px", fontSize: "15px", fontWeight: 600, marginBottom: "25px", lineHeight: "1.5", border: "1px solid rgba(13, 148, 136, 0.15)" },
-  configSection: { border: "1px dashed #cbd5e1", padding: "10px", borderRadius: "16px", marginBottom: "15px", backgroundColor: "#f8fafc" },
-  configLabel: { fontSize: "14px", fontWeight: 700, color: "#475569", marginBottom: "10px" },
-  inputField: { width: "100%", padding: "12px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "16px", color: "#0f766e", fontWeight: "bold", outline: "none", backgroundColor: "#ffffff", boxSizing: "border-box", marginBottom: "15px" },
-  btnSuccess: { width: "100%", padding: "14px", backgroundColor: "#0d9488", color: "#ffffff", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 10px rgba(13, 148, 136, 0.2)", transition: "0.2s" },
-  pendingCard: { padding: "30px 20px", border: "2px solid #2dd4bf", borderRadius: "16px", backgroundColor: "#f0fdfa", display: "flex", flexDirection: "column", alignItems: "center" },
-  pulseSpinner: { width: "24px", height: "24px", backgroundColor: "#0d9488", borderRadius: "50%", animation: "re-render 1.2s infinite ease-in-out" },
-  completedCard: { padding: "30px 20px", border: "2px solid #4ade80", borderRadius: "16px", backgroundColor: "#f0fdf4" },
-  weightDisplay: { fontSize: "48px", fontWeight: 900, color: "#16a34a", margin: "10px 0 20px 0" }
+  card: { width: "100%", maxWidth: "480px", backgroundColor: "#ffffff", borderRadius: "24px", padding: "40px 35px", boxShadow: "0 10px 25px -5px rgba(13, 148, 136, 0.1)", border: "1px solid #ccfbf1" },
+  appTitle: { fontSize: "22px", fontWeight: 800, color: "#0d9488", textAlign: "center", marginBottom: "20px" },
+  infoLabel: { fontSize: "14px", fontWeight: 600, color: "#334155", marginBottom: "8px", textTransform: "uppercase" },
+  inputField: { width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1px solid #cbd5e1", fontSize: "15px", marginBottom: "20px", outline: "none", boxSizing: "border-box" },
+  otpInputField: { width: "100%", padding: "14px 16px", borderRadius: "12px", border: "2px solid #0d9488", fontSize: "22px", color: "#0d9488", fontWeight: "bold", marginBottom: "25px", outline: "none", boxSizing: "border-box", textAlign: "center", letterSpacing: "8px" },
+  btnPrimary: { width: "100%", padding: "14px", backgroundColor: "#0d9488", color: "#ffffff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(13, 148, 136, 0.2)" },
+  alertBox: { backgroundColor: "#ccfbf1", color: "#115e59", padding: "14px", borderRadius: "14px", fontSize: "14px", fontWeight: 600, marginBottom: "20px", lineHeight: "1.5", border: "1px solid rgba(13, 148, 136, 0.15)" },
 } as const;
