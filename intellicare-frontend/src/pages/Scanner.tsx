@@ -68,16 +68,25 @@ export default function Scanner() {
       false,
     );
 
+    const decodeUtf8 = (text: string) => {
+      try {
+        return decodeURIComponent(escape(text));
+      } catch (error) {
+        return text;
+      }
+    }
+
     scanner.render(
       async (decodedText) => {
         scanner.clear();
         // console.log("RAW QR DATA TỪ CAMERA:", decodedText);
+        const fixedText = decodeUtf8(decodedText);
         try {
           const response = await axiosClient.post(
             "/api/measurements/check-qr-auth",
             {
               deviceId: deviceId,
-              rawQrData: decodedText,
+              rawQrData: fixedText,
             },
           );
 
@@ -117,7 +126,7 @@ export default function Scanner() {
     return () => {
       scanner.clear().catch((e) => console.error(e));
     };
-  }, [status, showAuthModal, deviceId]);
+  }, [status, showAuthModal, deviceId, user]);
 
   // Lắng nghe kết quả Cân nặng từ IoT
   useEffect(() => {
