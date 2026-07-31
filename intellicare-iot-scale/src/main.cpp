@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "config.h"
 #include "api_client.h"
+#include "mqtt_client.h"
 #include "weight_sensor.h"
 #include "display_ui.h"
 #include "audio_manager.h"
@@ -30,6 +31,7 @@ void apiTaskCode(void *pvParameters)
     if (needToSend)
     {
       bool success = sendWeightData(weightToSend);
+      mqtt_publishWeight(weightToSend); // Song song với HTTP, không chặn nhau
       if (success)
       {
         isSent = true;
@@ -53,6 +55,7 @@ void setup()
   ui_init();
   ui_showBooting();
   setupWiFi();
+  mqtt_setup();
   ui_showSensorInit();
   sensor_init();
 
@@ -63,6 +66,8 @@ void setup()
 
 void loop()
 {
+  mqtt_loop();
+
   int reading = digitalRead(TARE_BUTTON_PIN);
   if (reading != lastButtonState)
     lastDebounceTime = millis();
