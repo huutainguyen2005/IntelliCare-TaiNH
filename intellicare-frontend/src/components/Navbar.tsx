@@ -73,7 +73,10 @@ const styles = {
     gap: "10px",
   },
   logoIcon: {
-    fontSize: "28px",
+    width: "40px",
+    height: "40px",
+    objectFit: "contain",
+    borderRadius: "8px",
   },
   logoTitle: {
     fontSize: "22px",
