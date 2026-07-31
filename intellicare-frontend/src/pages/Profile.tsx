@@ -308,20 +308,24 @@ const Profile: React.FC = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   pageBackground: {
-    minHeight: "calc(100vh - 70px)",
-    background: "radial-gradient(circle at 50% 50%, #f0fdf4 0%, #e2e8f0 100%)",
+    width: "100%",
+    minHeight: "calc(100vh - 80px)",
+    background: "var(--bg)",
     display: "flex",
     justifyContent: "center",
     alignItems: "flex-start",
-    padding: "50px 20px",
+    padding: "40px 20px",
     boxSizing: "border-box",
     fontFamily: "'Segoe UI', Roboto, sans-serif",
+    overflowX: "hidden",
+    overflowY: "visible",
   },
   container: {
     background: "rgba(255, 255, 255, 0.92)",
     backdropFilter: "blur(16px)",
     width: "100%",
     maxWidth: "600px",
+    minWidth: 0,
     borderRadius: "32px",
     padding: "40px",
     boxSizing: "border-box",

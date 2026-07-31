@@ -407,8 +407,8 @@ export default function StaffDashboard() {
 // --- CSS STYLES ĐÃ ĐƯỢC TINH CHỈNH ĐỂ TRÁNH TRÙNG LẶP SCROLLBARS ---
 const styles: { [key: string]: React.CSSProperties } = {
   pageBackground: {
-    minHeight: "100vh",
-    background: "radial-gradient(circle at 50% 50%, #f0fdf4 0%, #e2e8f0 100%)",
+    minHeight: "calc(100vh - 80px)",
+    background: "var(--bg)",
     display: "flex",
     justifyContent: "center",
     alignItems: "flex-start",

@@ -412,7 +412,7 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     alignItems: "center",
     minHeight: "calc(100vh - 80px)",
-    backgroundColor: "#f0fdfa",
+    background: "var(--bg)",
     padding: "20px",
     fontFamily: "'Segoe UI', Roboto, sans-serif",
   },
