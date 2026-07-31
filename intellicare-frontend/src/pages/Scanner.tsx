@@ -74,7 +74,7 @@ export default function Scanner() {
       } catch (error) {
         return text;
       }
-    }
+    };
 
     scanner.render(
       async (decodedText) => {

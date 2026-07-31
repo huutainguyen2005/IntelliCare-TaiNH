@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useCustomAuth } from "../context/AuthContext";
 import axiosClient from "../api/axiosClient";
+import { Link } from "react-router-dom";
 
 const Login: React.FC = () => {
   const { isAuthenticated, login } = useCustomAuth();
@@ -55,8 +56,19 @@ const Login: React.FC = () => {
           navigate("/profile");
         }
       }
-    } catch (err: any) {
-      setErrorMsg(err.response?.data || "Sai thông tin đăng nhập!");
+    } catch (error: any) {
+      const status = error.response?.status;
+
+      if (
+        status === 401 ||
+        status === 400 ||
+        status === 404 ||
+        status === 500
+      ) {
+        setErrorMsg("Sai tài khoản hoặc mật khẩu!");
+      } else {
+        setErrorMsg("Đăng nhập thất bại. Vui lòng thử lại!");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -156,13 +168,54 @@ const Login: React.FC = () => {
             {isLoading ? "ĐANG XỬ LÝ..." : "ĐĂNG NHẬP"}
           </button>
         </form>
-        {errorMsg && <div style={{ color: "red", marginTop: "10px" }}>{errorMsg}</div>}
+
+        {/* XỬ LÝ LỖI HIỂN THỊ THEO ROLE */}
+        {errorMsg &&
+          (loginType === "patient" ? (
+            // Dành cho Bệnh nhân: Hiện gợi ý kích hoạt
+            <div style={styles.smartAlertBox as any}>
+              <div style={{ fontWeight: "bold", marginBottom: "8px" }}>
+                ⚠️ {errorMsg}
+              </div>
+
+              <div
+                style={{
+                  fontSize: "13px",
+                  color: "#334155",
+                  marginBottom: "12px",
+                  lineHeight: "1.4",
+                }}
+              >
+                Bạn đã đo sức khỏe tại Trạm cân Kiosk bằng thẻ CCCD nhưng chưa
+                tạo mật khẩu?
+              </div>
+
+              <Link to="/activate" style={styles.activateLinkBtn as any}>
+                Kích hoạt hồ sơ ngay ➔
+              </Link>
+            </div>
+          ) : (
+            // Dành cho Nhân viên: Chỉ báo lỗi đỏ cơ bản, không có nút kích hoạt
+            <div
+              style={{
+                color: "#e11d48",
+                backgroundColor: "#fff1f2",
+                padding: "12px",
+                borderRadius: "8px",
+                marginTop: "24px",
+                textAlign: "center",
+                fontWeight: 600,
+                border: "1px solid #fecdd3",
+              }}
+            >
+              ⚠️ {errorMsg}
+            </div>
+          ))}
       </div>
     </div>
   );
 };
 
-// --- ĐỐI TƯỢNG STYLES BIOTECH CHUẨN REACT (Giữ nguyên giao diện của bạn) ---
 const styles: { [key: string]: React.CSSProperties } = {
   wrapper: {
     minHeight: "100vh",
@@ -399,6 +452,31 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: "pointer",
     fontSize: "14px",
     fontWeight: "bold",
+  },
+  smartAlertBox: {
+    backgroundColor: "#fff1f2",
+    border: "1px solid #fecdd3",
+    color: "#e11d48",
+    padding: "20px",
+    borderRadius: "12px",
+    marginTop: "24px",
+    textAlign: "left",
+    display: "flex",
+    flexDirection: "column",
+  },
+  activateLinkBtn: {
+    display: "inline-block",
+    backgroundColor: "#0d9488",
+    color: "#ffffff",
+    padding: "10px 16px",
+    borderRadius: "8px",
+    fontSize: "14px",
+    fontWeight: 600,
+    textDecoration: "none",
+    transition: "0.2s",
+    boxShadow: "0 2px 4px rgba(13, 148, 136, 0.2)",
+    textAlign: "center",
+    marginTop: "12px",
   },
 };
 

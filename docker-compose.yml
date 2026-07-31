@@ -1,0 +1,32 @@
+services:
+  emqx:
+    image: emqx:5.8.0
+    container_name: intellicare-mqtt-broker
+    restart: unless-stopped
+    ports:
+      - "1883:1883"     # TCP chuẩn (Dành cho Spring Boot và Thiết bị IoT)
+      - "8083:8083"     # WS (Dành cho Frontend React test ở localhost)
+      - "18083:18083"   # Cổng màn hình quản trị EMQX Dashboard
+      
+      # CẤU HÌNH PRODUCTION (Dành cho Giai đoạn sau)
+      # Mở comment port 8084 khi deploy lên Server có tên miền & HTTPS.
+      # Lưu ý: Cần mở comment thêm phần volumes ./certs ở bên dưới.
+      # - "8084:8084"   # WSS (MQTT over WebSocket Secure)
+
+    environment:
+      - EMQX_ALLOW_ANONYMOUS=true # Cho phép kết nối không cần user/pass (Chỉ dùng cho MVP/Dev)
+      # Khi lên Production, nên đổi thành false và setup Auth trong Dashboard
+
+    volumes:
+      - emqx-data:/opt/emqx/data
+      - emqx-log:/opt/emqx/log
+      
+      # THƯ MỤC CHỨA CHỨNG CHỈ SSL (PRODUCTION)
+      # Tạo folder 'certs' ngang hàng với file này, thả file cert.pem và key.pem vào
+      # - ./certs:/opt/emqx/etc/certs 
+
+volumes:
+  emqx-data:
+    name: intellicare-emqx-data
+  emqx-log:
+    name: intellicare-emqx-log
