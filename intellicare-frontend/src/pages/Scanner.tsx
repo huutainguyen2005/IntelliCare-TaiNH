@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from "react";
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import React, { useState, useEffect, useRef } from "react";
 import axiosClient from "../api/axiosClient";
 import Modal from "../components/Modal";
 import { auth } from "../api/firebaseConfig";
@@ -49,84 +48,114 @@ export default function Scanner() {
     if (modalConfig.onConfirm) modalConfig.onConfirm();
   };
 
-  // Khởi tạo Camera quét QR
+  // Ô input ẩn luôn giữ focus để "hứng" chuỗi ký tự máy quét gõ vào
+  // (Máy quét mã vạch hoạt động như bàn phím USB - gõ text rồi Enter)
+  const scannerInputRef = useRef<HTMLInputElement>(null);
+  const [scanBuffer, setScanBuffer] = useState("");
+
+  // Parse chuỗi CCCD dạng:
+  // [CCCD]|[CMND cũ]|[Họ và tên]|[Ngày sinh DDMMYYYY]|[Giới tính]|[Địa chỉ]|[Ngày cấp DDMMYYYY]
+  const parseCccdQr = (raw: string) => {
+    const parts = raw.split("|").map((p) => p.trim());
+    const [idCard, oldIdCard, fullName, dobRaw, gender, address, issueDateRaw] =
+      parts;
+
+    // Đổi DDMMYYYY -> YYYY-MM-DD để khớp định dạng BE thường dùng
+    const toIsoDate = (d?: string) => {
+      if (!d || d.length !== 8) return "";
+      const day = d.slice(0, 2);
+      const month = d.slice(2, 4);
+      const year = d.slice(4, 8);
+      return `${year}-${month}-${day}`;
+    };
+
+    return {
+      idCard: idCard || "",
+      oldIdCard: oldIdCard || "", // Có thể rỗng nếu không có CMND cũ
+      fullName: fullName || "",
+      dob: toIsoDate(dobRaw),
+      gender: gender || "",
+      address: address || "",
+      issueDate: toIsoDate(issueDateRaw),
+    };
+  };
+
+  // Xử lý dữ liệu sau khi máy quét gửi xong 1 lần quét (kết thúc bằng Enter)
+  const processScanRaw = async (rawInput: string) => {
+    const fixedText = rawInput.trim();
+    if (!fixedText) return;
+
+    // Validate nhanh: mã CCCD hợp lệ phải tách được ít nhất 5 trường
+    if (fixedText.split("|").length < 5) {
+      showModal(
+        "Dữ liệu quét không hợp lệ (không đúng định dạng CCCD). Vui lòng quét lại!",
+        "warning",
+      );
+      return;
+    }
+
+    try {
+      const response = await axiosClient.post(
+        "/api/measurements/check-qr-auth",
+        {
+          deviceId: deviceId,
+          rawQrData: fixedText,
+        },
+      );
+
+      // Chặn bệnh nhân quét CCCD của người khác
+      if (user && user.role === "ROLE_PATIENT") {
+        const scannedName = response.data.isNew
+          ? response.data.parsedData.fullName
+          : response.data.session.patientName;
+
+        if (scannedName !== user.fullName) {
+          showModal(
+            `Lỗi xác thực: Bạn đang đăng nhập là ${user.fullName}, không thể quét CCCD của ${scannedName}!`,
+            "error",
+          );
+          setStatus("IDLE");
+          return;
+        }
+      }
+
+      if (response.data.isNew) {
+        setParsedData(response.data.parsedData ?? parseCccdQr(fixedText));
+        setShowAuthModal(true);
+      } else {
+        setPatientName(response.data.session.patientName);
+        setStatus("PENDING");
+      }
+    } catch (error: any) {
+      showModal("Lỗi mạng/Hệ thống: " + error.message, "error");
+      setStatus("IDLE");
+    }
+  };
+
+  // Giữ focus liên tục vào ô input ẩn để bất kỳ lúc nào máy quét "gõ"
+  // dữ liệu vào, trình duyệt cũng nhận được (chỉ khi đang chờ quét)
   useEffect(() => {
     if (status !== "IDLE" || showAuthModal) return;
 
-    const scanner = new Html5QrcodeScanner(
-      "reader",
-      {
-        fps: 25,
-        qrbox: { width: 300, height: 300 },
-        aspectRatio: 1.0,
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-        videoConstraints: {
-          facingMode: "environment",
-          advanced: [{ focusMode: "continuous" } as any],
-        },
-      },
-      false,
-    );
+    const focusHiddenInput = () => scannerInputRef.current?.focus();
+    focusHiddenInput();
 
-    const decodeUtf8 = (text: string) => {
-      try {
-        return decodeURIComponent(escape(text));
-      } catch (error) {
-        return text;
-      }
-    };
-
-    scanner.render(
-      async (decodedText) => {
-        scanner.clear();
-        // console.log("RAW QR DATA TỪ CAMERA:", decodedText);
-        const fixedText = decodeUtf8(decodedText);
-        try {
-          const response = await axiosClient.post(
-            "/api/measurements/check-qr-auth",
-            {
-              deviceId: deviceId,
-              rawQrData: fixedText,
-            },
-          );
-
-          // Chặn bệnh nhân quét CCCD của người khác
-          if (user && user.role === "ROLE_PATIENT") {
-            // Lấy tên từ dữ liệu CCCD (tùy thuộc vào việc là user mới hay cũ)
-            const scannedName = response.data.isNew
-              ? response.data.parsedData.fullName
-              : response.data.session.patientName;
-
-            // Nếu tên trên CCCD không khớp với tên tài khoản đang đăng nhập
-            if (scannedName !== user.fullName) {
-              showModal(
-                `Lỗi xác thực: Bạn đang đăng nhập là ${user.fullName}, không thể quét CCCD của ${scannedName}!`,
-                "error",
-              );
-              setStatus("IDLE");
-              return; // Chặn đứng luồng chạy, không cho hiển thị popup nhập OTP
-            }
-          }
-
-          if (response.data.isNew) {
-            setParsedData(response.data.parsedData);
-            setShowAuthModal(true);
-          } else {
-            setPatientName(response.data.session.patientName);
-            setStatus("PENDING");
-          }
-        } catch (error: any) {
-          showModal("Lỗi mạng/Hệ thống: " + error.message, "error");
-          setStatus("IDLE");
-        }
-      },
-      (_error) => {},
-    );
+    // Phòng trường hợp người dùng lỡ click ra chỗ khác làm mất focus
+    const intervalId = setInterval(focusHiddenInput, 400);
+    document.addEventListener("click", focusHiddenInput);
 
     return () => {
-      scanner.clear().catch((e) => console.error(e));
+      clearInterval(intervalId);
+      document.removeEventListener("click", focusHiddenInput);
     };
-  }, [status, showAuthModal, deviceId, user]);
+  }, [status, showAuthModal]);
+
+  const handleScannerFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault(); // Máy quét gửi phím Enter -> form submit thay vì reload trang
+    const raw = scanBuffer;
+    setScanBuffer("");
+    processScanRaw(raw);
+  };
 
   // Lắng nghe kết quả Cân nặng từ IoT
   useEffect(() => {
@@ -241,15 +270,36 @@ export default function Scanner() {
           <>
             <div style={styles.configSection}>
               <p style={styles.configLabel}>Quét thẻ CCCD để bắt đầu</p>
-              <div
-                id="reader"
-                style={{
-                  width: "100%",
-                  overflow: "hidden",
-                  borderRadius: "10px",
-                  margin: "0 auto",
-                }}
-              ></div>
+              <div style={styles.waitingScanBox}>
+                <p
+                  style={{
+                    color: "#64748b",
+                    fontSize: "13px",
+                  }}
+                >
+                  Đưa mặt trước CCCD (mã QR) vào đầu đọc máy quét...
+                </p>
+              </div>
+              {/* Form ẩn: máy quét mã vạch hoạt động như bàn phím, gõ chuỗi
+                  dữ liệu rồi gửi phím Enter -> trigger submit form này */}
+              <form onSubmit={handleScannerFormSubmit}>
+                <input
+                  ref={scannerInputRef}
+                  value={scanBuffer}
+                  onChange={(e) => setScanBuffer(e.target.value)}
+                  autoFocus
+                  // Ẩn hoàn toàn khỏi mắt người dùng nhưng vẫn nhận được
+                  // sự kiện bàn phím vì vẫn nằm trong luồng DOM & có focus
+                  style={{
+                    position: "absolute",
+                    opacity: 0,
+                    height: 0,
+                    width: 0,
+                    border: "none",
+                    padding: 0,
+                  }}
+                />
+              </form>
             </div>
 
             <div style={{ marginTop: "15px" }}>
@@ -456,6 +506,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     color: "#475569",
     marginBottom: "10px",
+  },
+  waitingScanBox: {
+    padding: "30px 15px",
+    textAlign: "center",
+    borderRadius: "10px",
   },
   inputField: {
     width: "100%",
