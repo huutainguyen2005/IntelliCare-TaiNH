@@ -22,7 +22,7 @@ export default function Navbar() {
     <nav style={styles.navbar}>
       <div style={styles.logoContainer}>
         <Link to="/" style={styles.logoLink}>
-          <span style={styles.logoIcon}>🩺</span>
+          <img src="/logo.jpg" alt="IntelliCare Logo" style={styles.logoIcon} />
           <span style={styles.logoTitle}>INTELLICARE</span>
         </Link>
       </div>
