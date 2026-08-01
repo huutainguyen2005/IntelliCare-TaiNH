@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import axiosClient from "../api/axiosClient";
 import Modal from "../components/Modal";
 import { useCustomAuth } from "../context/AuthContext";
@@ -33,13 +34,35 @@ export default function Scanner() {
     if (modalConfig.onConfirm) modalConfig.onConfirm();
   };
 
-  // Ô input ẩn luôn giữ focus để "hứng" chuỗi ký tự máy quét gõ vào
-  // (Máy quét mã vạch hoạt động như bàn phím USB - gõ text rồi Enter)
-  const scannerInputRef = useRef<HTMLInputElement>(null);
-  const [scanBuffer, setScanBuffer] = useState("");
+  // ============================================================
+  // [ĐANG TẮT] MÁY QUÉT MÃ VẠCH VẬT LÝ (Keyboard Wedge/HID)
+  // Bật lại đoạn này (và comment khối CAMERA bên dưới) khi chuyển
+  // sang dùng máy quét vật lý cắm dây thay vì camera iPad.
+  // ============================================================
+  // const scannerInputRef = useRef<HTMLInputElement>(null);
+  // const [scanBuffer, setScanBuffer] = useState("");
+  //
+  // useEffect(() => {
+  //   if (status !== "IDLE") return;
+  //   const focusHiddenInput = () => scannerInputRef.current?.focus();
+  //   focusHiddenInput();
+  //   const intervalId = setInterval(focusHiddenInput, 400);
+  //   document.addEventListener("click", focusHiddenInput);
+  //   return () => {
+  //     clearInterval(intervalId);
+  //     document.removeEventListener("click", focusHiddenInput);
+  //   };
+  // }, [status]);
+  //
+  // const handleScannerFormSubmit = (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   const raw = scanBuffer;
+  //   setScanBuffer("");
+  //   processScanRaw(raw);
+  // };
 
-  // Xử lý dữ liệu sau khi máy quét gửi xong 1 lần quét (kết thúc bằng Enter)
-  // Gọi đúng endpoint BE: POST /api/measurements/scan-qr
+  // Xử lý dữ liệu sau khi có chuỗi CCCD (dù từ camera hay máy quét vật lý
+  // đều gọi chung hàm này). Gọi đúng endpoint BE: POST /api/measurements/scan-qr
   // BE sẽ tự tạo bệnh nhân mới nếu CCCD chưa từng đo (không cần OTP tại kiosk)
   // và khởi tạo phiên đo ngay lập tức, trả về MeasurementSessionResponseDTO.
   const processScanRaw = async (rawInput: string) => {
@@ -88,30 +111,58 @@ export default function Scanner() {
     }
   };
 
-  // Giữ focus liên tục vào ô input ẩn để bất kỳ lúc nào máy quét "gõ"
-  // dữ liệu vào, trình duyệt cũng nhận được (chỉ khi đang chờ quét)
+  // ============================================================
+  // CAMERA QUÉT QR (dùng camera của iPad/máy tính làm kiosk)
+  // ============================================================
   useEffect(() => {
     if (status !== "IDLE") return;
 
-    const focusHiddenInput = () => scannerInputRef.current?.focus();
-    focusHiddenInput();
+    const scanner = new Html5QrcodeScanner(
+      "reader",
+      {
+        fps: 25,
+        qrbox: { width: 280, height: 280 },
+        aspectRatio: 1.0,
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        videoConstraints: {
+          facingMode: "environment", // Camera sau của iPad
+          advanced: [{ focusMode: "continuous" } as any],
+        },
+      },
+      false,
+    );
 
-    // Phòng trường hợp người dùng lỡ click ra chỗ khác làm mất focus
-    const intervalId = setInterval(focusHiddenInput, 400);
-    document.addEventListener("click", focusHiddenInput);
+    // QR có thể được encode không đúng UTF-8 (hay gặp khi tạo QR test bằng
+    // tool online như zxing generator) -> thử decode lại cho chắc dấu tiếng Việt
+    const decodeUtf8 = (text: string) => {
+      try {
+        return decodeURIComponent(escape(text));
+      } catch {
+        return text;
+      }
+    };
+
+    let isHandled = false;
+
+    scanner.render(
+      async (decodedText) => {
+        if (isHandled) return; // Chặn quét trùng nhiều lần liên tiếp
+        isHandled = true;
+
+        scanner.clear().catch(() => {});
+        await processScanRaw(decodeUtf8(decodedText));
+      },
+      (_error) => {
+        // Bỏ qua lỗi "không tìm thấy QR trong khung hình" - xảy ra liên tục,
+        // là chuyện bình thường trong lúc đang rê camera tìm mã.
+      },
+    );
 
     return () => {
-      clearInterval(intervalId);
-      document.removeEventListener("click", focusHiddenInput);
+      scanner.clear().catch(() => {});
     };
-  }, [status]);
-
-  const handleScannerFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault(); // Máy quét gửi phím Enter -> form submit thay vì reload trang
-    const raw = scanBuffer;
-    setScanBuffer("");
-    processScanRaw(raw);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, deviceId, user]);
 
   // Lắng nghe kết quả Cân nặng từ IoT
   useEffect(() => {
@@ -143,7 +194,7 @@ export default function Scanner() {
 
         {patientName && (
           <div style={styles.alertBox}>
-            Bệnh nhân:{" "}
+            🧬 Bệnh nhân:{" "}
             <strong style={{ color: "#0f766e" }}>{patientName}</strong>
           </div>
         )}
@@ -152,29 +203,39 @@ export default function Scanner() {
           <>
             <div style={styles.configSection}>
               <p style={styles.configLabel}>Quét thẻ CCCD để bắt đầu</p>
-              <div style={styles.waitingScanBox}>
+
+              {/* CAMERA QUÉT QR */}
+              <div
+                id="reader"
+                style={{
+                  width: "100%",
+                  overflow: "hidden",
+                  borderRadius: "10px",
+                  margin: "0 auto",
+                }}
+              ></div>
+
+              {isSubmittingScan && (
                 <p
                   style={{
-                    color: "#64748b",
+                    color: "#0d9488",
                     fontSize: "13px",
+                    fontWeight: 600,
+                    marginTop: "10px",
                   }}
                 >
-                  {isSubmittingScan
-                    ? "Đang xử lý dữ liệu, vui lòng đợi..."
-                    : "Đưa mặt trước CCCD (mã QR) vào đầu đọc máy quét..."}
+                  Đang xử lý dữ liệu, vui lòng đợi...
                 </p>
-              </div>
-              {/* Form ẩn: máy quét mã vạch hoạt động như bàn phím, gõ chuỗi
-                  dữ liệu rồi gửi phím Enter -> trigger submit form này */}
-              <form onSubmit={handleScannerFormSubmit}>
+              )}
+
+              {/* [ĐANG TẮT] Form ẩn hứng dữ liệu từ máy quét vật lý.
+                  Bật lại cùng lúc với khối useEffect Keyboard Wedge phía trên. */}
+              {/* <form onSubmit={handleScannerFormSubmit}>
                 <input
                   ref={scannerInputRef}
                   value={scanBuffer}
                   onChange={(e) => setScanBuffer(e.target.value)}
                   autoFocus
-                  disabled={isSubmittingScan}
-                  // Ẩn hoàn toàn khỏi mắt người dùng nhưng vẫn nhận được
-                  // sự kiện bàn phím vì vẫn nằm trong luồng DOM & có focus
                   style={{
                     position: "absolute",
                     opacity: 0,
@@ -184,7 +245,7 @@ export default function Scanner() {
                     padding: 0,
                   }}
                 />
-              </form>
+              </form> */}
             </div>
 
             <div style={{ marginTop: "15px" }}>
@@ -309,11 +370,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     color: "#475569",
     marginBottom: "10px",
-  },
-  waitingScanBox: {
-    padding: "30px 15px",
-    textAlign: "center",
-    borderRadius: "10px",
   },
   inputField: {
     width: "100%",
