@@ -11,8 +11,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.hibernate.annotations.Nationalized;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -37,21 +35,18 @@ public class Patient {
     @Column(name = "id_card", unique = true, length = 20)
     private String idCard;
 
-    @Nationalized
     @Column(name = "address", columnDefinition = "NVARCHAR(255)")
     private String address;
 
     @Column(name = "password", length = 255) // Cột này mặc định đã cho phép NULL
     private String password;
 
-    @Nationalized
     @Column(name = "full_name", nullable = false, columnDefinition = "NVARCHAR(100)")
     private String fullName;
 
     @Column(name = "dob")
     private LocalDate dob;
 
-    @Nationalized
     @Column(name = "gender", nullable = true, columnDefinition = "NVARCHAR(20)")
     private String gender;
 
