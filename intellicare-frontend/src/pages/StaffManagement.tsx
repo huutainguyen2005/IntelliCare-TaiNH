@@ -39,6 +39,8 @@ export default function StaffManagement() {
   const [staffList, setStaffList] = useState<StaffItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [staffPage, setStaffPage] = useState(1);
+  const STAFF_PER_PAGE = 5;
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [form, setForm] = useState<StaffFormState>(emptyForm);
@@ -71,9 +73,11 @@ export default function StaffManagement() {
       const res = await axiosClient.get("/api/staff");
       // Chỉ hiển thị Doctor/Nurse trong bảng quản lý này, ẩn tài khoản Admin đi
       // (không phải để giấu, mà vì trang này không dùng để thao tác lên Admin)
-      const filtered = (res.data as StaffItem[]).filter(
-        (s) => s.role !== "ADMIN",
-      );
+      const filtered = (res.data as StaffItem[])
+        .filter((s) => s.role !== "ADMIN")
+        // Mới nhất lên đầu (staffId lớn = tạo sau) - để tài khoản vừa tạo
+        // luôn hiện ngay ở trang 1, khỏi phải lật trang tìm
+        .sort((a, b) => b.staffId - a.staffId);
       setStaffList(filtered);
     } catch (error) {
       console.error("Lỗi khi tải danh sách nhân viên:", error);
@@ -147,6 +151,7 @@ export default function StaffManagement() {
         });
 
         showModal("Tạo tài khoản thành công!", "success");
+        setStaffPage(1); // Về trang 1 để thấy ngay tài khoản vừa tạo
       } else {
         // CẬP NHẬT
         const payload: Record<string, unknown> = {
@@ -247,6 +252,15 @@ export default function StaffManagement() {
       s.username.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredList.length / STAFF_PER_PAGE),
+  );
+  const pagedList = filteredList.slice(
+    (staffPage - 1) * STAFF_PER_PAGE,
+    staffPage * STAFF_PER_PAGE,
+  );
+
   const roleLabel = (role: string) => {
     if (role === "DOCTOR") return "Bác sĩ";
     if (role === "NURSE") return "Y tá / Điều dưỡng";
@@ -267,7 +281,10 @@ export default function StaffManagement() {
           style={styles.searchInput}
           placeholder="🔍 Tìm theo tên hoặc tên đăng nhập..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setStaffPage(1);
+          }}
         />
 
         {isLoading ? (
@@ -276,7 +293,7 @@ export default function StaffManagement() {
           <p style={styles.emptyText}>Chưa có tài khoản Bác sĩ/Y tá nào.</p>
         ) : (
           <div style={{ marginTop: "20px" }}>
-            {filteredList.map((s) => (
+            {pagedList.map((s) => (
               <div key={s.staffId} style={styles.staffCard}>
                 <div>
                   <div style={styles.staffName}>
@@ -319,6 +336,35 @@ export default function StaffManagement() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* PHÂN TRANG - chỉ hiện khi nhiều hơn 1 trang */}
+        {!isLoading && filteredList.length > STAFF_PER_PAGE && (
+          <div style={styles.paginationRow}>
+            <button
+              style={{
+                ...styles.pageBtn,
+                ...(staffPage === 1 ? styles.pageBtnDisabled : {}),
+              }}
+              disabled={staffPage === 1}
+              onClick={() => setStaffPage((p) => p - 1)}
+            >
+              ← Trước
+            </button>
+            <span style={styles.pageIndicator}>
+              Trang {staffPage}/{totalPages}
+            </span>
+            <button
+              style={{
+                ...styles.pageBtn,
+                ...(staffPage >= totalPages ? styles.pageBtnDisabled : {}),
+              }}
+              disabled={staffPage >= totalPages}
+              onClick={() => setStaffPage((p) => p + 1)}
+            >
+              Sau →
+            </button>
           </div>
         )}
       </div>
@@ -585,6 +631,35 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#64748b",
     marginTop: "30px",
     fontStyle: "italic",
+  },
+  paginationRow: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "16px",
+    marginTop: "20px",
+    paddingTop: "20px",
+    borderTop: "1px solid #e2e8f0",
+  },
+  pageBtn: {
+    padding: "8px 16px",
+    borderRadius: "8px",
+    border: "1px solid #0d9488",
+    background: "#ffffff",
+    color: "#0d9488",
+    fontSize: "13px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  pageBtnDisabled: {
+    borderColor: "#e2e8f0",
+    color: "#cbd5e1",
+    cursor: "not-allowed",
+  },
+  pageIndicator: {
+    fontSize: "13px",
+    fontWeight: 700,
+    color: "#475569",
   },
   staffCard: {
     display: "flex",

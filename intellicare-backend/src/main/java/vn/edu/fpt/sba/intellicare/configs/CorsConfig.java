@@ -11,7 +11,7 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**") // Áp dụng quy tắc này cho toàn bộ các endpoint
                 .allowedOriginPatterns("*") // Sau này deploy lên server, đổi dấu * thành cái domain của web
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*");
 //                .allowCredentials(true); // Nếu sau này có dùng token/cookie gửi kèm
     }

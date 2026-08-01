@@ -17,6 +17,15 @@ interface WeightLog {
 }
 
 const Profile: React.FC = () => {
+  // Format DD/MM/YYYY (luôn có số 0 phía trước) - toLocaleDateString mặc định
+  // không pad số 0 (VD: "1/8/2026" thay vì "01/08/2026")
+  const formatDate = (dateInput: string | Date): string => {
+    const d = new Date(dateInput);
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${day}/${month}/${d.getFullYear()}`;
+  };
+
   const { isAuthenticated } = useCustomAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -24,6 +33,8 @@ const Profile: React.FC = () => {
   // State cho Lịch sử đo
   const [logs, setLogs] = useState<WeightLog[]>([]);
   const [showLogs, setShowLogs] = useState<boolean>(false);
+  const [logPage, setLogPage] = useState<number>(1);
+  const LOGS_PER_PAGE = 5;
 
   // State xử lý hiệu ứng hover nút bấm bằng React thuần
   const [isLogBtnHovered, setIsLogBtnHovered] = useState(false);
@@ -63,6 +74,7 @@ const Profile: React.FC = () => {
 
   const handleToggleLogs = () => {
     setShowLogs(!showLogs);
+    setLogPage(1);
   };
 
   // --- THUẬT TOÁN QUÉT RỦI RO SINH TRẮC HỌC ---
@@ -78,7 +90,7 @@ const Profile: React.FC = () => {
       if (logDate >= targetDate) continue;
 
       const weightDiff = Math.abs(targetLog.weightKg - log.weightKg);
-      const formattedLogDate = logDate.toLocaleDateString("vi-VN");
+      const formattedLogDate = formatDate(logDate);
 
       if (logDate >= oneWeekAgo && weightDiff > 2) {
         return {
@@ -265,47 +277,94 @@ const Profile: React.FC = () => {
               {showLogs && (
                 <div style={styles.logsTimelineWrapper}>
                   {sortedLogs.length > 0 ? (
-                    sortedLogs.map((log) => {
-                      const logRisk = evaluateLogRisk(log, sortedLogs);
-                      return (
-                        <div
-                          key={log.logId}
-                          style={{
-                            ...styles.logCard,
-                            ...(logRisk.isRisk
-                              ? styles.logCardDanger
-                              : styles.logCardNormal),
-                          }}
-                        >
-                          <div>
-                            <div style={styles.logTimeTitle}>
-                              {new Date(log.measuredAt).toLocaleDateString(
-                                "vi-VN",
-                              )}
-                              {logRisk.isRisk && (
-                                <span style={styles.dangerTag}>Nguy cơ</span>
-                              )}
+                    <>
+                      {sortedLogs
+                        .slice(
+                          (logPage - 1) * LOGS_PER_PAGE,
+                          logPage * LOGS_PER_PAGE,
+                        )
+                        .map((log) => {
+                          // Vẫn đánh giá rủi ro dựa trên TOÀN BỘ lịch sử,
+                          // chỉ cắt trang phần hiển thị
+                          const logRisk = evaluateLogRisk(log, sortedLogs);
+                          return (
+                            <div
+                              key={log.logId}
+                              style={{
+                                ...styles.logCard,
+                                ...(logRisk.isRisk
+                                  ? styles.logCardDanger
+                                  : styles.logCardNormal),
+                              }}
+                            >
+                              <div>
+                                <div style={styles.logTimeTitle}>
+                                  {formatDate(log.measuredAt)}
+                                  {logRisk.isRisk && (
+                                    <span style={styles.dangerTag}>
+                                      Nguy cơ
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={styles.logTimeSub}>
+                                  {new Date(log.measuredAt).toLocaleTimeString(
+                                    "vi-VN",
+                                  )}
+                                </div>
+                              </div>
+                              <div
+                                style={{
+                                  ...styles.logWeightNum,
+                                  color: logRisk.isRisk ? "#dc2626" : "#0f766e",
+                                }}
+                              >
+                                {log.weightKg}{" "}
+                                <span
+                                  style={{ fontSize: "14px", fontWeight: 700 }}
+                                >
+                                  kg
+                                </span>
+                              </div>
                             </div>
-                            <div style={styles.logTimeSub}>
-                              {new Date(log.measuredAt).toLocaleTimeString(
-                                "vi-VN",
-                              )}
-                            </div>
-                          </div>
-                          <div
+                          );
+                        })}
+
+                      {/* PHÂN TRANG - chỉ hiện khi nhiều hơn 1 trang */}
+                      {sortedLogs.length > LOGS_PER_PAGE && (
+                        <div style={styles.paginationRow}>
+                          <button
                             style={{
-                              ...styles.logWeightNum,
-                              color: logRisk.isRisk ? "#dc2626" : "#0f766e",
+                              ...styles.pageBtn,
+                              ...(logPage === 1 ? styles.pageBtnDisabled : {}),
                             }}
+                            disabled={logPage === 1}
+                            onClick={() => setLogPage((p) => p - 1)}
                           >
-                            {log.weightKg}{" "}
-                            <span style={{ fontSize: "14px", fontWeight: 700 }}>
-                              kg
-                            </span>
-                          </div>
+                            ← Trước
+                          </button>
+                          <span style={styles.pageIndicator}>
+                            Trang {logPage}/
+                            {Math.ceil(sortedLogs.length / LOGS_PER_PAGE)}
+                          </span>
+                          <button
+                            style={{
+                              ...styles.pageBtn,
+                              ...(logPage >=
+                              Math.ceil(sortedLogs.length / LOGS_PER_PAGE)
+                                ? styles.pageBtnDisabled
+                                : {}),
+                            }}
+                            disabled={
+                              logPage >=
+                              Math.ceil(sortedLogs.length / LOGS_PER_PAGE)
+                            }
+                            onClick={() => setLogPage((p) => p + 1)}
+                          >
+                            Sau →
+                          </button>
                         </div>
-                      );
-                    })
+                      )}
+                    </>
                   ) : (
                     <p style={styles.logStatusText}>
                       📭 Chưa ghi nhận dữ liệu lịch sử cân đo nào.
@@ -523,6 +582,35 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 600,
     color: "#64748b",
     margin: "20px 0",
+  },
+  paginationRow: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "16px",
+    marginTop: "16px",
+    paddingTop: "16px",
+    borderTop: "1px solid #f1f5f9",
+  },
+  pageBtn: {
+    padding: "8px 16px",
+    borderRadius: "8px",
+    border: "1px solid #0d9488",
+    background: "#ffffff",
+    color: "#0d9488",
+    fontSize: "13px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  pageBtnDisabled: {
+    borderColor: "#e2e8f0",
+    color: "#cbd5e1",
+    cursor: "not-allowed",
+  },
+  pageIndicator: {
+    fontSize: "13px",
+    fontWeight: 700,
+    color: "#475569",
   },
   stateWrapper: {
     minHeight: "calc(100vh - 70px)",

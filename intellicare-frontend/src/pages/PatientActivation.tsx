@@ -69,10 +69,19 @@ export default function PatientActivation() {
       });
       setStep(2); // Chuyển sang bước nhập SĐT/Pass
     } catch (error: any) {
-      showModal(
+      const backendMsg: string =
         error.response?.data ||
-          "Không tìm thấy hồ sơ! Vui lòng kiểm tra lại CCCD và Ngày sinh.",
+        "Không tìm thấy hồ sơ! Vui lòng kiểm tra lại CCCD và Ngày sinh.";
+
+      // Tài khoản đã kích hoạt từ trước -> đóng popup thì đưa thẳng về Login
+      const alreadyActivated =
+        typeof backendMsg === "string" &&
+        backendMsg.includes("đã được kích hoạt");
+
+      showModal(
+        backendMsg,
         "error",
+        alreadyActivated ? () => navigate("/login") : undefined,
       );
     } finally {
       setLoading(false);
@@ -119,7 +128,9 @@ export default function PatientActivation() {
         showModal("Đã gửi mã OTP vào Số điện thoại!", "success");
       }
     } catch (error: any) {
-      showModal(error.response?.data || "Lỗi gửi mã OTP!", "error");
+      const data = error.response?.data;
+      const message = typeof data === "string" ? data : data?.message;
+      showModal(message || "Lỗi gửi mã OTP!", "error");
     } finally {
       setLoading(false);
     }

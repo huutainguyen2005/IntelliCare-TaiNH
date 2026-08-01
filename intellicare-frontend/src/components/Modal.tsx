@@ -58,7 +58,7 @@ const overlayStyle: React.CSSProperties = {
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  zIndex: 1000,
+  zIndex: 100000, // Luôn nổi trên mọi overlay khác trong app (form modal, dropdown...)
 };
 
 const modalStyle: React.CSSProperties = {

@@ -36,6 +36,7 @@ public class AuthController {
     private final IOtpService otpService;
     private final IEmailService emailService;
     private final LoginAttemptService loginAttemptService;
+    private final vn.edu.fpt.sba.intellicare.services.impl.OtpRateLimitService otpRateLimitService;
 
     // Hash "giả" dùng để chạy bcrypt.matches() khi không tìm thấy tài khoản,
     // giúp thời gian phản hồi ổn định, chống timing attack dò tài khoản.
@@ -329,6 +330,14 @@ public class AuthController {
         String email = request.get("email");
         if (email == null || !email.contains("@")) {
             return ResponseEntity.badRequest().body("Địa chỉ Email không hợp lệ!");
+        }
+
+        String rateLimitError = otpRateLimitService.checkAndRecord(email.trim());
+        if (rateLimitError != null) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(
+                    "errorCode", "TOO_MANY_ATTEMPTS",
+                    "message", rateLimitError
+            ));
         }
 
         try {
