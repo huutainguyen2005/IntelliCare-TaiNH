@@ -8,7 +8,7 @@ const axiosClient = axios.create({
   // baseURL: `http://${currentHost}:8080`,
   baseURL: "https://intellicare-tainh.onrender.com",
   headers: {
-    "Content-Type": "application/json",
+    "Content-Type": "application/json; charset=UTF-8",
   },
 });
 axiosClient.interceptors.request.use(
