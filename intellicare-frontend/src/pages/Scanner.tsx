@@ -7,7 +7,7 @@ import { useCustomAuth } from "../context/AuthContext";
 export default function Scanner() {
   const { user } = useCustomAuth();
   const [patientName, setPatientName] = useState<string>("");
-  const [deviceId, setDeviceId] = useState("SCALE-DEMO-01");
+  const [deviceId, setDeviceId] = useState("SCALE-001");
   const [status, setStatus] = useState<"IDLE" | "PENDING" | "COMPLETED">(
     "IDLE",
   );
