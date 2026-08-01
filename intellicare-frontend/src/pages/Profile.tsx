@@ -154,8 +154,8 @@ const Profile: React.FC = () => {
             }}
           >
             {isPatient
-              ? `BỆNH NHÂN - ${profile?.fullName || ""}`
-              : "NHÂN VIÊN Y TẾ"}
+              ? `🧬 BỆNH NHÂN - ${profile?.fullName || ""}`
+              : "🩺 NHÂN VIÊN Y TẾ"}
           </span>
         </div>
 
@@ -165,18 +165,33 @@ const Profile: React.FC = () => {
             <span style={styles.infoValue}>{profile?.fullName}</span>
           </div>
 
-          <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>
-              {profile?.identifier && !profile.identifier.includes("@")
-                ? "Số điện thoại"
-                : "Địa chỉ Email"}
-            </span>
-            <span style={styles.infoValue}>
-              {profile?.identifier && !profile.identifier.includes("@")
-                ? profile.identifier
-                : profile?.email}
-            </span>
-          </div>
+          {isPatient ? (
+            <div style={styles.infoRow}>
+              <span style={styles.infoLabel}>
+                {profile?.identifier && !profile.identifier.includes("@")
+                  ? "Số điện thoại"
+                  : "Địa chỉ Email"}
+              </span>
+              <span style={styles.infoValue}>
+                {profile?.identifier && !profile.identifier.includes("@")
+                  ? profile.identifier
+                  : profile?.email}
+              </span>
+            </div>
+          ) : (
+            <>
+              <div style={styles.infoRow}>
+                <span style={styles.infoLabel}>Tên đăng nhập</span>
+                <span style={styles.infoValue}>{profile?.identifier}</span>
+              </div>
+              <div style={styles.infoRow}>
+                <span style={styles.infoLabel}>Địa chỉ Email</span>
+                <span style={styles.infoValue}>
+                  {profile?.email || "Chưa cập nhật"}
+                </span>
+              </div>
+            </>
+          )}
 
           {/* Hiển thị thêm chức vụ hệ thống nếu KHÔNG phải là bệnh nhân */}
           {!isPatient && (

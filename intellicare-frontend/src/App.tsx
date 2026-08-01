@@ -6,9 +6,9 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Navbar from "./components/Navbar";
 import StaffDashboard from "./pages/StaffDashboard";
+import StaffManagement from "./pages/StaffManagement";
 import PatientDetail from "./pages/PatientDetail";
 import PatientActivation from "./pages/PatientActivation";
-import StaffManagement from "./pages/StaffManagement";
 import ForgotPassword from "./pages/ForgotPassword";
 
 // "kiosk"  -> máy quét tại trạm cân: CHỈ hiện /scanner, fullscreen, không có Navbar
@@ -68,7 +68,13 @@ function WebApp() {
         <Route
           path="/profile"
           element={
-            isAuthenticated ? <Profile /> : <Navigate to="/login" replace />
+            !isAuthenticated ? (
+              <Navigate to="/login" replace />
+            ) : user?.role === "ADMIN" ? (
+              <Navigate to="/staff-management" replace />
+            ) : (
+              <Profile />
+            )
           }
         />
 

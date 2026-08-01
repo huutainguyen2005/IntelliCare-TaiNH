@@ -57,12 +57,15 @@ public class ProfileController {
             Staff staff = staffRepository.findByUsername(identifier)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy dữ liệu nhân viên"));
 
+            String displayEmail = (staff.getEmail() != null && !staff.getEmail().isEmpty())
+                    ? staff.getEmail() : null;
+
             return ResponseEntity.ok(new UserProfileDTO(
                     staff.getStaffId(),        // <--- ID số của Staff (hoặc null nếu không dùng đến)
                     staff.getUsername(),
                     staff.getFullName(),
                     staff.getRole().name(),
-                    "staff@intellicare.vn",
+                    displayEmail,
                     null,
                     null
             ));

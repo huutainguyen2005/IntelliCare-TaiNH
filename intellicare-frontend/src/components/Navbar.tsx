@@ -38,9 +38,11 @@ export default function Navbar() {
 
         {/* MENU TRÊN DESKTOP */}
         <div className="nav-links-desktop">
-          <Link to="/profile" style={styles.navItem}>
-            Hồ sơ
-          </Link>
+          {!isAdmin && (
+            <Link to="/profile" style={styles.navItem}>
+              Hồ sơ
+            </Link>
+          )}
           {isAdmin && (
             <Link to="/staff-management" style={styles.navItem}>
               Quản lý Bác sĩ/Y tá
@@ -74,9 +76,15 @@ export default function Navbar() {
       {/* DROPDOWN MENU MOBILE: Điều khiển hoàn toàn bằng State isMenuOpen */}
       {isMenuOpen && (
         <div style={styles.mobileMenuDropdown}>
-          <Link to="/profile" style={styles.navItemMobile} onClick={closeMenu}>
-            Hồ sơ
-          </Link>
+          {!isAdmin && (
+            <Link
+              to="/profile"
+              style={styles.navItemMobile}
+              onClick={closeMenu}
+            >
+              Hồ sơ
+            </Link>
+          )}
           {isAdmin && (
             <Link
               to="/staff-management"

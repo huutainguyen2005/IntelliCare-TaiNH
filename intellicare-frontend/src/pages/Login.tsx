@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import Modal from "../components/Modal";
 
 const Login: React.FC = () => {
-  const { isAuthenticated, login } = useCustomAuth();
+  const { isAuthenticated, user, login } = useCustomAuth();
   const navigate = useNavigate();
 
   const [loginType, setLoginType] = useState<"patient" | "staff">("patient");
@@ -20,7 +20,14 @@ const Login: React.FC = () => {
   // (phòng trường hợp họ phớt lờ dòng link "Kích hoạt tài khoản" phía dưới form)
   const [showActivateModal, setShowActivateModal] = useState(false);
 
-  if (isAuthenticated) return <Navigate to="/profile" replace />;
+  if (isAuthenticated) {
+    return (
+      <Navigate
+        to={user?.role === "ADMIN" ? "/staff-management" : "/profile"}
+        replace
+      />
+    );
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +43,7 @@ const Login: React.FC = () => {
       });
       const { token, role, fullName } = response.data;
       login(token, role, fullName, rememberMe);
-      navigate("/profile");
+      navigate(role === "ADMIN" ? "/staff-management" : "/profile");
     } catch (error: any) {
       const errorCode = error.response?.data?.errorCode;
       const backendMsg = error.response?.data?.message;
