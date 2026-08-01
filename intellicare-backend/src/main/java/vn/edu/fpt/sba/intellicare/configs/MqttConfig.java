@@ -56,7 +56,7 @@ public class MqttConfig {
     public MessageProducer inbound() {
         MqttPahoMessageDrivenChannelAdapter adapter =
                 new MqttPahoMessageDrivenChannelAdapter(CLIENT_ID + "-inbound", mqttClientFactory(), topicResult);
-        adapter.setAutoStartup(false);
+        adapter.setAutoStartup(true);
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);
