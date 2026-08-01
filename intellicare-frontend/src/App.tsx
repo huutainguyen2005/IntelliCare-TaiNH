@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Navbar from "./components/Navbar";
 import StaffDashboard from "./pages/StaffDashboard";
+import StaffManagement from "./pages/StaffManagement";
 import PatientDetail from "./pages/PatientDetail";
 import PatientActivation from "./pages/PatientActivation";
 
@@ -69,11 +70,11 @@ function WebApp() {
           }
         />
 
-        {/* ĐỔI ĐIỀU KIỆN ROUTE: Cho phép truy cập nếu không phải ROLE_PATIENT */}
+        {/* ĐỔI ĐIỀU KIỆN ROUTE: Cho phép truy cập nếu không phải PATIENT */}
         <Route
           path="/dashboard"
           element={
-            isAuthenticated && user?.role !== "ROLE_PATIENT" ? (
+            isAuthenticated && user?.role !== "PATIENT" ? (
               <StaffDashboard />
             ) : (
               <Navigate to="/login" replace />
@@ -83,8 +84,20 @@ function WebApp() {
         <Route
           path="/patient-detail/:id"
           element={
-            isAuthenticated && user?.role !== "ROLE_PATIENT" ? (
+            isAuthenticated && user?.role !== "PATIENT" ? (
               <PatientDetail />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        {/* CHỈ ADMIN mới được vào trang quản lý Bác sĩ/Y tá */}
+        <Route
+          path="/staff-management"
+          element={
+            isAuthenticated && user?.role === "ADMIN" ? (
+              <StaffManagement />
             ) : (
               <Navigate to="/login" replace />
             )

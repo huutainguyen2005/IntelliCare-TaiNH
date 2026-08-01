@@ -1,19 +1,21 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useCustomAuth } from "../context/AuthContext";
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated, user, logout } = useCustomAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   if (location.pathname === "/scanner") {
     return null;
   }
 
-  const token = localStorage.getItem("token");
+  const isAdmin = user?.role === "ADMIN";
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    logout();
     setIsMenuOpen(false);
     navigate("/login");
   };
@@ -39,7 +41,12 @@ export default function Navbar() {
           <Link to="/profile" style={styles.navItem}>
             Hồ sơ
           </Link>
-          {token ? (
+          {isAdmin && (
+            <Link to="/staff-management" style={styles.navItem}>
+              Quản lý Bác sĩ/Y tá
+            </Link>
+          )}
+          {isAuthenticated ? (
             <button onClick={handleLogout} style={styles.btnLogout}>
               Đăng xuất
             </button>
@@ -70,7 +77,16 @@ export default function Navbar() {
           <Link to="/profile" style={styles.navItemMobile} onClick={closeMenu}>
             Hồ sơ
           </Link>
-          {token ? (
+          {isAdmin && (
+            <Link
+              to="/staff-management"
+              style={styles.navItemMobile}
+              onClick={closeMenu}
+            >
+              Quản lý Bác sĩ/Y tá
+            </Link>
+          )}
+          {isAuthenticated ? (
             <button onClick={handleLogout} style={styles.btnLogoutMobile}>
               Đăng xuất
             </button>
