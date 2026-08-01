@@ -127,12 +127,6 @@ const Login: React.FC = () => {
             </Link>
           </div>
 
-          {loginType === "staff" && (
-            <div style={styles.staffForgotHint}>
-              Quên mật khẩu? Vui lòng liên hệ Admin để được cấp lại.
-            </div>
-          )}
-
           <label style={styles.rememberMeRow}>
             <input
               type="checkbox"
@@ -254,14 +248,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "#0d9488",
     fontWeight: 700,
     textDecoration: "none",
-  },
-  staffForgotHint: {
-    fontSize: "12px",
-    color: "#94a3b8",
-    marginTop: "-6px",
-    marginBottom: "8px",
-    textAlign: "right",
-    fontStyle: "italic",
   },
   btnSubmit: {
     width: "100%",
