@@ -45,10 +45,12 @@ public class StaffController {
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getStaffById(@PathVariable Integer id) {
-        return staffRepository.findById(id)
-                .map(s -> ResponseEntity.ok(toDTO(s)))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("message", "Không tìm thấy nhân viên!")));
+        Staff staff = staffRepository.findById(id).orElse(null);
+        if (staff == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Không tìm thấy nhân viên!"));
+        }
+        return ResponseEntity.ok(toDTO(staff));
     }
 
     @PostMapping
