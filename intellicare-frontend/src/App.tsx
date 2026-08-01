@@ -58,7 +58,7 @@ function WebApp() {
     <>
       <Navbar />
       <Routes>
-        <Route path="/" element={<Navigate to="/activate" replace />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/activate" element={<PatientActivation />} />
 
@@ -92,8 +92,8 @@ function WebApp() {
         />
 
         {/* Web app không có quyền vào /scanner (chỉ dành cho Kiosk) */}
-        <Route path="/scanner" element={<Navigate to="/activate" replace />} />
-        <Route path="*" element={<Navigate to="/activate" replace />} />
+        <Route path="/scanner" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </>
   );

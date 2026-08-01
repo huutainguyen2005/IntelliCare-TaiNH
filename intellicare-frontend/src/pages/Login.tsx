@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useCustomAuth } from "../context/AuthContext";
 import axiosClient from "../api/axiosClient";
 import { Link } from "react-router-dom";
+import Modal from "../components/Modal";
 
 const Login: React.FC = () => {
   const { isAuthenticated, login } = useCustomAuth();
@@ -15,6 +16,10 @@ const Login: React.FC = () => {
   const [otp, setOtp] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Modal nhắc kích hoạt tài khoản khi bệnh nhân cố đăng nhập mà đăng nhập lỗi
+  // (phòng trường hợp họ phớt lờ dòng link "Kích hoạt tài khoản" phía dưới form)
+  const [showActivateModal, setShowActivateModal] = useState(false);
 
   if (isAuthenticated) return <Navigate to="/profile" replace />;
 
@@ -57,17 +62,27 @@ const Login: React.FC = () => {
         }
       }
     } catch (error: any) {
-      const status = error.response?.status;
+      const errorCode = error.response?.data?.errorCode;
+      const backendMsg = error.response?.data?.message;
 
-      if (
-        status === 401 ||
-        status === 400 ||
-        status === 404 ||
-        status === 500
-      ) {
-        setErrorMsg("Sai tài khoản hoặc mật khẩu!");
+      if (loginType === "patient" && errorCode === "NOT_ACTIVATED") {
+        // Chỉ hiện Modal đúng lúc tài khoản thật sự chưa kích hoạt,
+        // không làm phiền người dùng khi họ chỉ đơn giản gõ sai mật khẩu.
+        setErrorMsg(backendMsg || "Tài khoản chưa được kích hoạt.");
+        setShowActivateModal(true);
+      } else if (errorCode === "TOO_MANY_ATTEMPTS") {
+        // Bị rate limit do sai quá nhiều lần liên tiếp - không phải lỗi sai TK/MK
+        setErrorMsg(
+          backendMsg ||
+            "Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau ít phút.",
+        );
+      } else if (errorCode === "INVALID_CREDENTIALS") {
+        // Gộp chung "không tìm thấy TK" + "sai mật khẩu" -> chống dò tài khoản
+        setErrorMsg("Tài khoản hoặc mật khẩu không chính xác!");
       } else {
-        setErrorMsg("Đăng nhập thất bại. Vui lòng thử lại!");
+        // /staff/login chưa trả errorCode (chưa sửa BE cho nhánh này),
+        // nên giữ message chung như cũ cho tab Nhân viên.
+        setErrorMsg("Tài khoản hoặc mật khẩu không chính xác!");
       }
     } finally {
       setIsLoading(false);
@@ -169,49 +184,29 @@ const Login: React.FC = () => {
           </button>
         </form>
 
-        {/* XỬ LÝ LỖI HIỂN THỊ THEO ROLE */}
-        {errorMsg &&
-          (loginType === "patient" ? (
-            // Dành cho Bệnh nhân: Hiện gợi ý kích hoạt
-            <div style={styles.smartAlertBox as any}>
-              <div style={{ fontWeight: "bold", marginBottom: "8px" }}>
-                ⚠️ {errorMsg}
-              </div>
+        {/* LINK KÍCH HOẠT - LUÔN HIỂN THỊ cho tab Bệnh nhân, không đợi lỗi */}
+        {loginType === "patient" && (
+          <div style={styles.activateHintRow}>
+            Chưa có tài khoản?{" "}
+            <Link to="/activate" style={styles.activateInlineLink}>
+              Kích hoạt tài khoản ngay
+            </Link>
+          </div>
+        )}
 
-              <div
-                style={{
-                  fontSize: "13px",
-                  color: "#334155",
-                  marginBottom: "12px",
-                  lineHeight: "1.4",
-                }}
-              >
-                Bạn đã đo sức khỏe tại Trạm cân Kiosk bằng thẻ CCCD nhưng chưa
-                tạo mật khẩu?
-              </div>
-
-              <Link to="/activate" style={styles.activateLinkBtn as any}>
-                Kích hoạt hồ sơ ngay ➔
-              </Link>
-            </div>
-          ) : (
-            // Dành cho Nhân viên: Chỉ báo lỗi đỏ cơ bản, không có nút kích hoạt
-            <div
-              style={{
-                color: "#e11d48",
-                backgroundColor: "#fff1f2",
-                padding: "12px",
-                borderRadius: "8px",
-                marginTop: "24px",
-                textAlign: "center",
-                fontWeight: 600,
-                border: "1px solid #fecdd3",
-              }}
-            >
-              ⚠️ {errorMsg}
-            </div>
-          ))}
+        {/* LỖI ĐĂNG NHẬP - chỉ báo đỏ đơn giản, phần nhắc kích hoạt đã
+            chuyển qua Modal (showActivateModal) để không bị bỏ lỡ */}
+        {errorMsg && <div style={styles.errorBox}>⚠️ {errorMsg}</div>}
       </div>
+
+      {/* MODAL NHẮC KÍCH HOẠT - hiện khi Bệnh nhân đăng nhập lỗi,
+          phòng trường hợp họ phớt lờ dòng link phía trên mà vẫn cố nhập */}
+      <Modal
+        isOpen={showActivateModal}
+        type="warning"
+        message="Không tìm thấy tài khoản phù hợp. Nếu bạn đã đo sức khỏe tại Trạm cân Kiosk bằng CCCD nhưng chưa tạo mật khẩu, hãy kích hoạt tài khoản trước khi đăng nhập."
+        onClose={() => setShowActivateModal(false)}
+      />
     </div>
   );
 };
@@ -318,28 +313,26 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: "13px",
     fontWeight: "bold",
   },
-  smartAlertBox: {
-    backgroundColor: "#fff1f2",
-    border: "1px solid #fecdd3",
-    color: "#e11d48",
-    padding: "12px",
-    borderRadius: "10px",
-    marginTop: "16px",
-    textAlign: "left",
-    display: "flex",
-    flexDirection: "column",
-  },
-  activateLinkBtn: {
-    display: "inline-block",
-    backgroundColor: "#0d9488",
-    color: "#ffffff",
-    padding: "8px 12px",
-    borderRadius: "6px",
-    fontSize: "13px",
-    fontWeight: 600,
-    textDecoration: "none",
+  activateHintRow: {
     textAlign: "center",
-    marginTop: "8px",
+    fontSize: "13px",
+    color: "#64748b",
+    marginTop: "18px",
+  },
+  activateInlineLink: {
+    color: "#0d9488",
+    fontWeight: 700,
+    textDecoration: "none",
+  },
+  errorBox: {
+    color: "#e11d48",
+    backgroundColor: "#fff1f2",
+    padding: "12px",
+    borderRadius: "8px",
+    marginTop: "14px",
+    textAlign: "center",
+    fontWeight: 600,
+    border: "1px solid #fecdd3",
   },
 };
 

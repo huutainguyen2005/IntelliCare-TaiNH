@@ -20,6 +20,7 @@ import vn.edu.fpt.sba.intellicare.repositories.StaffRepository;
 import vn.edu.fpt.sba.intellicare.services.IEmailService;
 import vn.edu.fpt.sba.intellicare.services.IOtpService;
 import vn.edu.fpt.sba.intellicare.services.impl.JwtService;
+import vn.edu.fpt.sba.intellicare.services.impl.LoginAttemptService;
 
 import java.util.Map;
 
@@ -34,6 +35,12 @@ public class AuthController {
     private final JwtService jwtService;
     private final IOtpService otpService;
     private final IEmailService emailService;
+    private final LoginAttemptService loginAttemptService;
+
+    // Hash "giả" dùng để chạy bcrypt.matches() khi không tìm thấy tài khoản,
+    // giúp thời gian phản hồi ổn định, chống timing attack dò tài khoản.
+    private static final String DUMMY_BCRYPT_HASH =
+        "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5oOXPFBv/6bLLM2CN7Kt5j0.gYbXi";
 
     @PostMapping("/staff/register")
     public ResponseEntity<?> registerStaff(@Valid @RequestBody StaffRegisterDTO request) {
@@ -56,14 +63,44 @@ public class AuthController {
 
     @PostMapping("/staff/login")
     public ResponseEntity<?> loginStaff(@Valid @RequestBody LoginRequestDTO request) {
-        Staff staff = staffRepository.findByUsername(request.getIdentifier())
-                .orElseThrow(() -> new RuntimeException("Sai tài khoản hoặc mật khẩu"));
+        String identifier = request.getIdentifier().trim();
 
-        if (!passwordEncoder.matches(request.getPassword(), staff.getPassword())) {
-            throw new RuntimeException("Sai tài khoản hoặc mật khẩu");
+        // CHẶN BRUTE-FORCE
+        if (loginAttemptService.isBlocked(identifier)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(
+                    "errorCode", "TOO_MANY_ATTEMPTS",
+                    "message", "Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau ít phút."
+            ));
         }
 
+        Staff staff = staffRepository.findByUsername(identifier).orElse(null);
+
+        // Dùng dummy hash nếu username không tồn tại
+        // để tránh timing attack
+        String hashToCheck = (staff != null)
+                ? staff.getPassword()
+                : DUMMY_BCRYPT_HASH;
+
+        boolean passwordOk = passwordEncoder.matches(
+                request.getPassword(),
+                hashToCheck
+        );
+
+        // Không tìm thấy tài khoản hoặc sai mật khẩu
+        if (staff == null || !passwordOk) {
+            loginAttemptService.recordFailedAttempt(identifier);
+
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                    "errorCode", "INVALID_CREDENTIALS",
+                    "message", "Tài khoản hoặc mật khẩu không chính xác!"
+            ));
+        }
+
+        // Đăng nhập thành công -> reset số lần sai
+        loginAttemptService.recordSuccess(identifier);
+
         String staffRole = "ROLE_" + staff.getRole().trim().toUpperCase();
+
         String token = jwtService.generateToken(staff.getUsername(), staffRole);
 
         return ResponseEntity.ok(new AuthResponseDTO(token, staff.getRole().toUpperCase(), staff.getFullName()));
@@ -121,30 +158,46 @@ public class AuthController {
     @PostMapping("/patient/login")
     public ResponseEntity<?> loginPatient(@Valid @RequestBody LoginRequestDTO request) {
         String identifier = request.getIdentifier().trim();
-        Patient patient;
 
-        if (identifier.contains("@")) {
-            patient = patientRepository.findByEmail(identifier)
-                    .orElseThrow(() -> new RuntimeException("Sai tài khoản hoặc mật khẩu"));
-        } else {
-            patient = patientRepository.findByPhoneNumber(identifier)
-                    .orElseThrow(() -> new RuntimeException("Sai tài khoản hoặc mật khẩu"));
+        // CHẶN BRUTE-FORCE: kiểm tra ngay từ đầu, trước khi làm bất kỳ việc gì khác
+        if (loginAttemptService.isBlocked(identifier)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(
+                    "errorCode", "TOO_MANY_ATTEMPTS",
+                    "message", "Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau ít phút."
+            ));
         }
 
-        // BẮT LỖI PENDING PASSWORD BẰNG ENUM
-        if (patient.getAccountStatus() == AccountStatus.PENDING_PASSWORD) {
-            return ResponseEntity.badRequest().body("Tài khoản chưa thiết lập mật khẩu. Vui lòng đăng nhập bằng mã OTP!");
+        Patient patient = identifier.contains("@")
+                ? patientRepository.findByEmail(identifier).orElse(null)
+                : patientRepository.findByPhoneNumber(identifier).orElse(null);
+
+        // TH1: Tài khoản tồn tại nhưng CHƯA kích hoạt -> báo rõ để hướng dẫn kích hoạt
+        if (patient != null && patient.getAccountStatus() == AccountStatus.PENDING_PASSWORD) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "errorCode", "NOT_ACTIVATED",
+                    "message", "Tài khoản chưa được kích hoạt. Vui lòng kích hoạt tài khoản trước khi đăng nhập!"
+            ));
         }
 
-        if (!passwordEncoder.matches(request.getPassword(), patient.getPassword())) {
-            throw new RuntimeException("Sai tài khoản hoặc mật khẩu");
+        // TH2: Không tìm thấy TK hoặc sai mật khẩu -> GỘP CHUNG message, chống dò tài khoản.
+        // Vẫn chạy passwordEncoder.matches() dù patient=null (dùng hash giả) để thời gian
+        // phản hồi ổn định, chống timing attack.
+        String hashToCheck = (patient != null) ? patient.getPassword() : DUMMY_BCRYPT_HASH;
+        boolean passwordOk = passwordEncoder.matches(request.getPassword(), hashToCheck);
+
+        if (patient == null || !passwordOk) {
+            loginAttemptService.recordFailedAttempt(identifier); // GHI NHẬN LẦN SAI
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                    "errorCode", "INVALID_CREDENTIALS",
+                    "message", "Tài khoản hoặc mật khẩu không chính xác!"
+            ));
         }
 
+        loginAttemptService.recordSuccess(identifier); // ĐĂNG NHẬP OK -> RESET BỘ ĐẾM
         String token = jwtService.generateToken(identifier, "ROLE_PATIENT");
-        
-        // TRUYỀN ENUM VÀO DTO
         return ResponseEntity.ok(new AuthResponseDTO(token, "PATIENT", patient.getFullName(), patient.getAccountStatus()));
     }
+
 
     @PostMapping("/patient/login-otp")
     public ResponseEntity<?> loginPatientOtp(@RequestBody Map<String, String> request) {
