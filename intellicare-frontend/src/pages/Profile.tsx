@@ -189,9 +189,9 @@ const Profile: React.FC = () => {
                   fontWeight: 700,
                 }}
               >
-                {profile?.role === "ROLE_DOCTOR"
+                {profile?.role === "DOCTOR"
                   ? "Bác sĩ chuyên khoa"
-                  : profile?.role === "ROLE_NURSE"
+                  : profile?.role === "NURSE"
                     ? "Điều dưỡng viên"
                     : profile?.role}
               </span>

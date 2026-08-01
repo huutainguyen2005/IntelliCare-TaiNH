@@ -37,29 +37,18 @@ const Login: React.FC = () => {
           identifier: identifier.trim(),
           password,
         });
-        const { token, role, fullName, accountStatus } = response.data;
-
-        // Check status PENDING
-        if (accountStatus === "PENDING_PASSWORD") {
-          navigate("/set-password", { state: { identifier } });
-        } else {
-          login(token, role, fullName);
-          navigate("/profile");
-        }
+        const { token, role, fullName } = response.data;
+        login(token, role, fullName);
+        navigate("/profile");
       } else {
         // LOGIN OTP
         const response = await axiosClient.post("/auth/patient/login-otp", {
           identifier: identifier.trim(),
           otp,
         });
-        const { token, role, fullName, accountStatus } = response.data;
-
-        if (accountStatus === "PENDING_PASSWORD") {
-          navigate("/set-password", { state: { identifier } });
-        } else {
-          login(token, role, fullName);
-          navigate("/profile");
-        }
+        const { token, role, fullName } = response.data;
+        login(token, role, fullName);
+        navigate("/profile");
       }
     } catch (error: any) {
       const errorCode = error.response?.data?.errorCode;
