@@ -64,7 +64,7 @@ public class Patient {
     @Column(name = "activated_at")
     private LocalDateTime activatedAt;
 
-    @Column(name = "is_active", nullable = false)
+    @Column(name = "is_active", columnDefinition = "bit not null default 1")
     private Boolean isActive = true;
 
     // Mối quan hệ 1 bệnh nhân có nhiều lịch sử cân nặng

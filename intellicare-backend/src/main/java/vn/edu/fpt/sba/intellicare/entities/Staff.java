@@ -27,7 +27,7 @@ public class Staff {
     @Column(name = "full_name", nullable = false, columnDefinition = "NVARCHAR(100)")
     private String fullName;
 
-    @Column(name = "email", length = 100)
+    @Column(name = "email", nullable = false, length = 100)
     private String email;
 
     @Enumerated(EnumType.STRING)
@@ -50,6 +50,6 @@ public class Staff {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "is_active", nullable = false)
+    @Column(name = "is_active", columnDefinition = "bit not null default 1")
     private Boolean isActive = true;
 }

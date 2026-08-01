@@ -20,5 +20,6 @@ public record StaffRegisterDTO(
         @NotNull(message = "Vai trò không được để trống")
         Role role,
 
-        String email // Không bắt buộc - dùng làm kênh nhận OTP khi quên mật khẩu
+        @NotNull(message = "Email không được để trống")
+        String email
 ) {}
