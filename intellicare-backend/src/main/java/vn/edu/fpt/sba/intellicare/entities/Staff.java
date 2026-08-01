@@ -28,7 +28,7 @@ public class Staff {
     private String fullName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", length = 20)
+    @Column(name = "role", length = 20, columnDefinition = "varchar(20)")
     private Role role;
 
     @Column(name="gender", nullable = false)

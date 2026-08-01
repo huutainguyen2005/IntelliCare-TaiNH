@@ -26,9 +26,9 @@ public class MeasurementSession {
     private Patient patient;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", length = 20)
+    @Column(name = "status", length = 20, columnDefinition = "varchar(20)")
     private SessionStatus status = SessionStatus.Pending;
-    
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 }

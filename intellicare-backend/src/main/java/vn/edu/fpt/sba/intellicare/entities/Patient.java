@@ -54,7 +54,7 @@ public class Patient {
     private String faceImageUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "account_status", length = 50)
+    @Column(name = "account_status", length = 50, columnDefinition = "varchar(50)")
     private AccountStatus accountStatus;
 
     @Column(name = "created_at", insertable = false, updatable = false)

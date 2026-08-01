@@ -16,8 +16,9 @@ public interface PatientRepository extends JpaRepository<Patient, Integer> {
     Optional<Patient> findByPhoneNumber(String phoneNumber);
     
     Optional<Patient> findByEmail(String email);
-    
-    @Query(value = "SELECT * FROM patients WHERE LOWER(full_name) COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%' OR phone_number LIKE '%' + :keyword + '%'", nativeQuery = true)
+
+    @Query("SELECT p FROM Patient p WHERE LOWER(p.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR p.phoneNumber LIKE CONCAT('%', :keyword, '%')")
     List<Patient> searchByKeyword(@Param("keyword") String keyword);
     
     @Query("SELECT COALESCE(MAX(p.patientId), 0) FROM Patient p")
