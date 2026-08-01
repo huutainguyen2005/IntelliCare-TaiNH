@@ -194,7 +194,7 @@ export default function Scanner() {
 
         {patientName && (
           <div style={styles.alertBox}>
-            🧬 Bệnh nhân:{" "}
+            Bệnh nhân:{" "}
             <strong style={{ color: "#0f766e" }}>{patientName}</strong>
           </div>
         )}
