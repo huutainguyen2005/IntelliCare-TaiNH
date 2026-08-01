@@ -40,8 +40,9 @@ public class AuthController {
     // Hash "giả" dùng để chạy bcrypt.matches() khi không tìm thấy tài khoản,
     // giúp thời gian phản hồi ổn định, chống timing attack dò tài khoản.
     private static final String DUMMY_BCRYPT_HASH =
-        "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5oOXPFBv/6bLLM2CN7Kt5j0.gYbXi";
+            "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5oOXPFBv/6bLLM2CN7Kt5j0.gYbXi";
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping("/staff/register")
     public ResponseEntity<?> registerStaff(@Valid @RequestBody StaffRegisterDTO request) {
         // request.username() là String -> Vẫn dùng .trim() bình thường
@@ -118,7 +119,7 @@ public class AuthController {
         if (patientRepository.findByPhoneNumber(phoneNumber).isPresent()) {
             return ResponseEntity.badRequest().body("Số điện thoại này đã được đăng ký tài khoản!");
         }
-        
+
         boolean hasEmail = email != null && !email.trim().isEmpty();
         if (hasEmail) {
             email = email.trim();
@@ -132,7 +133,7 @@ public class AuthController {
             if (!isOtpValid) {
                 return ResponseEntity.badRequest().body("Mã OTP Email không chính xác hoặc đã hết hạn!");
             }
-        } 
+        }
 
         Patient patient = new Patient();
         patient.setFullName(request.fullName());
@@ -142,7 +143,7 @@ public class AuthController {
         patient.setIdCard(request.idCard());
         patient.setAddress(request.address());
         patient.setPatientCode(generatePatientCode());
-        
+
         if (hasEmail) {
             patient.setEmail(email);
         }
@@ -210,7 +211,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Thiếu thông tin định danh!");
         }
         identifier = identifier.trim();
-        
+
         Patient patient;
         if (identifier.contains("@")) {
             patient = patientRepository.findByEmail(identifier)
@@ -232,7 +233,7 @@ public class AuthController {
     public ResponseEntity<?> setPassword(@RequestBody Map<String, String> request) {
         String identifier = request.get("identifier");
         String newPassword = request.get("password");
-        
+
         if (identifier == null || newPassword == null || newPassword.length() < 6) {
             return ResponseEntity.badRequest().body("Thông tin không hợp lệ hoặc mật khẩu quá ngắn (>= 6 ký tự)!");
         }
@@ -243,11 +244,11 @@ public class AuthController {
         } else {
             patient = patientRepository.findByPhoneNumber(identifier).orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại!"));
         }
-        
+
         patient.setPassword(passwordEncoder.encode(newPassword));
         patient.setAccountStatus(AccountStatus.ACTIVE); // CHUYỂN SANG ENUM ACTIVE
         patientRepository.save(patient);
-        
+
         return ResponseEntity.ok(Map.of("message", "Thiết lập mật khẩu thành công!"));
     }
 
@@ -268,7 +269,7 @@ public class AuthController {
     }
 
     @GetMapping("/check-duplicate")
-    public ResponseEntity<?> checkDuplicate(@RequestParam(required = false) String phoneNumber, 
+    public ResponseEntity<?> checkDuplicate(@RequestParam(required = false) String phoneNumber,
                                             @RequestParam(required = false) String email) {
         if (phoneNumber != null && !phoneNumber.trim().isEmpty()) {
             if (patientRepository.findByPhoneNumber(phoneNumber.trim()).isPresent()) {
@@ -311,9 +312,9 @@ public class AuthController {
         }
 
         return ResponseEntity.ok(Map.of(
-            "message", "Xác minh hợp lệ",
-            "fullName", patient.getFullName(),
-            "patientCode", patient.getPatientCode()
+                "message", "Xác minh hợp lệ",
+                "fullName", patient.getFullName(),
+                "patientCode", patient.getPatientCode()
         ));
     }
 
@@ -347,9 +348,9 @@ public class AuthController {
         patient.setPhoneNumber(request.phoneNumber().trim());
         patient.setPassword(passwordEncoder.encode(request.password().trim()));
         patient.setAccountStatus(AccountStatus.ACTIVE);
-        
+
         patientRepository.save(patient);
-        
+
         return ResponseEntity.ok(Map.of("message", "Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay."));
     }
 
