@@ -132,16 +132,6 @@ export default function Scanner() {
       false,
     );
 
-    // QR có thể được encode không đúng UTF-8 (hay gặp khi tạo QR test bằng
-    // tool online như zxing generator) -> thử decode lại cho chắc dấu tiếng Việt
-    const decodeUtf8 = (text: string) => {
-      try {
-        return decodeURIComponent(escape(text));
-      } catch {
-        return text;
-      }
-    };
-
     let isHandled = false;
 
     scanner.render(
@@ -150,12 +140,9 @@ export default function Scanner() {
         isHandled = true;
 
         scanner.clear().catch(() => {});
-        await processScanRaw(decodeUtf8(decodedText));
+        await processScanRaw(decodedText.trim());
       },
-      (_error) => {
-        // Bỏ qua lỗi "không tìm thấy QR trong khung hình" - xảy ra liên tục,
-        // là chuyện bình thường trong lúc đang rê camera tìm mã.
-      },
+      (_error) => {},
     );
 
     return () => {
