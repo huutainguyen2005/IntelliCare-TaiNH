@@ -85,7 +85,7 @@ public class MqttConfig {
                         objectMapper.readValue(payload, WeightHardwareDataDTO.class);
 
                 // Gọi Service của bro để tự động bốc Patient, lưu WeightLog và đóng phiên đo
-                measurementService.recordWeight(data.getDeviceId(), data.getWeightKg());
+                measurementService.recordWeight(data.deviceId(), data.weightKg());
 
                 System.out.println("[DATABASE] Đã lưu cân nặng thành công và đóng phiên đo!");
 

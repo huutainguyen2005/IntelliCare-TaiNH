@@ -61,7 +61,7 @@ public class ProfileController {
                     staff.getStaffId(),        // <--- ID số của Staff (hoặc null nếu không dùng đến)
                     staff.getUsername(),
                     staff.getFullName(),
-                    staff.getRole(),
+                    staff.getRole().name(),
                     "staff@intellicare.vn",
                     null,
                     null

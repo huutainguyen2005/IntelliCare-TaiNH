@@ -27,13 +27,13 @@ public class MeasurementController {
 
     @PostMapping("/start")
     public ResponseEntity<String> initSession(@RequestBody QrScanRequestDTO request) {
-        measurementService.initSession(request.getPatientId(), request.getDeviceId());
+        measurementService.initSession(request.patientId(), request.deviceId());
         return ResponseEntity.ok("Phiên đo đã sẵn sàng");
     }
 
     @PostMapping("/submit")
     public ResponseEntity<String> recordWeight(@RequestBody WeightHardwareDataDTO request) {
-        measurementService.recordWeight(request.getDeviceId(), request.getWeightKg());
+        measurementService.recordWeight(request.deviceId(), request.weightKg());
         return ResponseEntity.ok("Ghi nhận cân nặng thành công");
     }
 

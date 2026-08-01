@@ -44,16 +44,19 @@ public class AuthController {
 
     @PostMapping("/staff/register")
     public ResponseEntity<?> registerStaff(@Valid @RequestBody StaffRegisterDTO request) {
-        if (staffRepository.findByUsername(request.getUsername().trim()).isPresent()) {
+        // request.username() là String -> Vẫn dùng .trim() bình thường
+        if (staffRepository.findByUsername(request.username().trim()).isPresent()) {
             return ResponseEntity.badRequest().body("Tên đăng nhập này đã tồn tại trong hệ thống!");
         }
 
         Staff staff = new Staff();
-        staff.setUsername(request.getUsername().trim());
-        staff.setFullName(request.getFullName().trim());
-        staff.setRole(request.getRole().trim().toUpperCase()); 
+        staff.setUsername(request.username().trim());
+        staff.setFullName(request.fullName().trim());
 
-        String encodedPassword = passwordEncoder.encode(request.getPassword().trim());
+        // request.role() là Enum Role -> Gán thẳng không cần trim() hay toUpperCase()
+        staff.setRole(request.role());
+
+        String encodedPassword = passwordEncoder.encode(request.password().trim());
         staff.setPassword(encodedPassword);
 
         staffRepository.save(staff);
@@ -63,7 +66,7 @@ public class AuthController {
 
     @PostMapping("/staff/login")
     public ResponseEntity<?> loginStaff(@Valid @RequestBody LoginRequestDTO request) {
-        String identifier = request.getIdentifier().trim();
+        String identifier = request.identifier().trim();
 
         // CHẶN BRUTE-FORCE
         if (loginAttemptService.isBlocked(identifier)) {
@@ -75,14 +78,13 @@ public class AuthController {
 
         Staff staff = staffRepository.findByUsername(identifier).orElse(null);
 
-        // Dùng dummy hash nếu username không tồn tại
-        // để tránh timing attack
+        // Dùng dummy hash nếu username không tồn tại để tránh timing attack
         String hashToCheck = (staff != null)
                 ? staff.getPassword()
                 : DUMMY_BCRYPT_HASH;
 
         boolean passwordOk = passwordEncoder.matches(
-                request.getPassword(),
+                request.password(),
                 hashToCheck
         );
 
@@ -99,17 +101,19 @@ public class AuthController {
         // Đăng nhập thành công -> reset số lần sai
         loginAttemptService.recordSuccess(identifier);
 
-        String staffRole = "ROLE_" + staff.getRole().trim().toUpperCase();
+        // staff.getRole() là Enum -> Dùng .name() để lấy chuỗi String
+        String staffRole = "ROLE_" + staff.getRole().name();
 
         String token = jwtService.generateToken(staff.getUsername(), staffRole);
 
-        return ResponseEntity.ok(new AuthResponseDTO(token, staff.getRole().toUpperCase(), staff.getFullName()));
+        // Trả về DTO, .name() để lấy chữ hoa của Enum gán vào Response
+        return ResponseEntity.ok(new AuthResponseDTO(token, staff.getRole().name(), staff.getFullName()));
     }
 
     @PostMapping("/patient/register")
     public ResponseEntity<?> registerPatient(@Valid @RequestBody PatientRegisterDTO request) {
-        String phoneNumber = request.getPhoneNumber();
-        String email = request.getEmail();
+        String phoneNumber = request.phoneNumber();
+        String email = request.email();
 
         if (patientRepository.findByPhoneNumber(phoneNumber).isPresent()) {
             return ResponseEntity.badRequest().body("Số điện thoại này đã được đăng ký tài khoản!");
@@ -124,19 +128,19 @@ public class AuthController {
         }
 
         if (hasEmail) {
-            boolean isOtpValid = otpService.verifyOtp(email, request.getOtp());
+            boolean isOtpValid = otpService.verifyOtp(email, request.otp());
             if (!isOtpValid) {
                 return ResponseEntity.badRequest().body("Mã OTP Email không chính xác hoặc đã hết hạn!");
             }
         } 
 
         Patient patient = new Patient();
-        patient.setFullName(request.getFullName());
-        patient.setGender(request.getGender());
-        patient.setDob(request.getDob());
+        patient.setFullName(request.fullName());
+        patient.setGender(request.gender());
+        patient.setDob(request.dob());
         patient.setPhoneNumber(phoneNumber);
-        patient.setIdCard(request.getIdCard()); 
-        patient.setAddress(request.getAddress()); 
+        patient.setIdCard(request.idCard());
+        patient.setAddress(request.address());
         patient.setPatientCode(generatePatientCode());
         
         if (hasEmail) {
@@ -144,8 +148,8 @@ public class AuthController {
         }
 
         // PHÂN LUỒNG KIOSK / WEB VỚI ENUM
-        if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
-            patient.setPassword(passwordEncoder.encode(request.getPassword().trim()));
+        if (request.password() != null && !request.password().trim().isEmpty()) {
+            patient.setPassword(passwordEncoder.encode(request.password().trim()));
             patient.setAccountStatus(AccountStatus.ACTIVE);
         } else {
             patient.setAccountStatus(AccountStatus.PENDING_PASSWORD);
@@ -157,7 +161,7 @@ public class AuthController {
 
     @PostMapping("/patient/login")
     public ResponseEntity<?> loginPatient(@Valid @RequestBody LoginRequestDTO request) {
-        String identifier = request.getIdentifier().trim();
+        String identifier = request.identifier().trim();
 
         // CHẶN BRUTE-FORCE: kiểm tra ngay từ đầu, trước khi làm bất kỳ việc gì khác
         if (loginAttemptService.isBlocked(identifier)) {
@@ -183,7 +187,7 @@ public class AuthController {
         // Vẫn chạy passwordEncoder.matches() dù patient=null (dùng hash giả) để thời gian
         // phản hồi ổn định, chống timing attack.
         String hashToCheck = (patient != null) ? patient.getPassword() : DUMMY_BCRYPT_HASH;
-        boolean passwordOk = passwordEncoder.matches(request.getPassword(), hashToCheck);
+        boolean passwordOk = passwordEncoder.matches(request.password(), hashToCheck);
 
         if (patient == null || !passwordOk) {
             loginAttemptService.recordFailedAttempt(identifier); // GHI NHẬN LẦN SAI
@@ -316,7 +320,7 @@ public class AuthController {
     // API KÍCH HOẠT TÀI KHOẢN CHÍNH THỨC (Bước 2)
     @PostMapping("/patient/activate")
     public ResponseEntity<?> activatePatient(@Valid @RequestBody vn.edu.fpt.sba.intellicare.dto.request.PatientActivationRequestDTO request) {
-        Patient patient = patientRepository.findByIdCard(request.getIdCard())
+        Patient patient = patientRepository.findByIdCard(request.idCard())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hồ sơ bệnh nhân!"));
 
         if (AccountStatus.ACTIVE.equals(patient.getAccountStatus())) {
@@ -324,24 +328,24 @@ public class AuthController {
         }
 
         // Kiểm tra xem SĐT thật này đã có ai dùng chưa
-        java.util.Optional<Patient> existingPhone = patientRepository.findByPhoneNumber(request.getPhoneNumber().trim());
+        java.util.Optional<Patient> existingPhone = patientRepository.findByPhoneNumber(request.phoneNumber().trim());
         if (existingPhone.isPresent() && !existingPhone.get().getPatientId().equals(patient.getPatientId())) {
             return ResponseEntity.badRequest().body("Số điện thoại này đã được sử dụng cho một hồ sơ khác!");
         }
 
         // Xác thực OTP (Nếu có Email thì kiểm tra OTP Email)
-        String email = request.getEmail();
+        String email = request.email();
         boolean hasEmail = email != null && !email.trim().isEmpty();
         if (hasEmail) {
-            if (!otpService.verifyOtp(email.trim(), request.getOtp())) {
+            if (!otpService.verifyOtp(email.trim(), request.otp())) {
                 return ResponseEntity.badRequest().body("Mã OTP Email không chính xác hoặc đã hết hạn!");
             }
             patient.setEmail(email.trim());
         }
 
         // Ghi đè SĐT thật, gán mật khẩu và kích hoạt
-        patient.setPhoneNumber(request.getPhoneNumber().trim());
-        patient.setPassword(passwordEncoder.encode(request.getPassword().trim()));
+        patient.setPhoneNumber(request.phoneNumber().trim());
+        patient.setPassword(passwordEncoder.encode(request.password().trim()));
         patient.setAccountStatus(AccountStatus.ACTIVE);
         
         patientRepository.save(patient);

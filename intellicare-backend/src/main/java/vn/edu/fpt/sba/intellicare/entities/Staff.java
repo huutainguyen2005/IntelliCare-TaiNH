@@ -3,6 +3,8 @@ package vn.edu.fpt.sba.intellicare.entities;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import vn.edu.fpt.sba.intellicare.enums.Role;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -25,14 +27,16 @@ public class Staff {
     private String password;
 
     @Nationalized
-    @Column(name = "full_name", nullable = false, length = 100)
+    @Column(name = "full_name", nullable = false, columnDefinition = "NVARCHAR(100)")
     private String fullName;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "role", length = 20)
-    private String role = "Nurse";
+    private Role role;
 
-    @Column(name="gender",nullable = true)
+    @Column(name="gender", nullable = false)
     private Boolean gender;
+
     // Mối quan hệ đệ quy: Một nhân viên thuộc quyền quản lý của một manager
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id") // Khớp với cột trong SQL

@@ -36,21 +36,21 @@ public class PatientServiceImpl implements IPatientService {
     @Override
     public Patient save(PatientRegisterDTO request) {
 
-        if (patientRepository.existsByPhoneNumber(request.getPhoneNumber())) {
+        if (patientRepository.existsByPhoneNumber(request.phoneNumber())) {
             throw new RuntimeException("Duplicate phone number: Số điện thoại này đã tồn tại trong hệ thống");
         }
 
         // 1. Ánh xạ sang Entity
         Patient patient = new Patient();
-        patient.setFullName(request.getFullName());
-        patient.setPhoneNumber(request.getPhoneNumber());
+        patient.setFullName(request.fullName());
+        patient.setPhoneNumber(request.phoneNumber());
 
         // Cập nhật thêm password từ request
-        patient.setPassword(request.getPassword());
+        patient.setPassword(request.password());
 
-        patient.setDob(request.getDob());
-        patient.setGender(request.getGender());
-        patient.setFaceImageUrl(request.getFaceImageUrl());
+        patient.setDob(request.dob());
+        patient.setGender(request.gender());
+        patient.setFaceImageUrl(request.faceImageUrl());
         patient.setPatientCode("TEMP_CODE");
         // 2. Lưu lần đầu để có ID
         Patient savedPatient = patientRepository.save(patient);

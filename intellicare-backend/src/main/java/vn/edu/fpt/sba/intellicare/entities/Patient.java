@@ -45,14 +45,14 @@ public class Patient {
     private String password;
 
     @Nationalized
-    @Column(name = "full_name", nullable = false, length = 100)
+    @Column(name = "full_name", nullable = false, columnDefinition = "NVARCHAR(100)")
     private String fullName;
 
     @Column(name = "dob")
     private LocalDate dob;
 
     @Nationalized
-    @Column(name="gender", nullable = true)
+    @Column(name = "gender", nullable = true, columnDefinition = "NVARCHAR(20)")
     private String gender;
 
     @Column(name = "face_image_url", columnDefinition = "NVARCHAR(MAX)")
