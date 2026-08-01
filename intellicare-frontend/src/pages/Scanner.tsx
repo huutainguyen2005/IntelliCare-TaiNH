@@ -1,13 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axiosClient from "../api/axiosClient";
 import Modal from "../components/Modal";
-import { auth } from "../api/firebaseConfig";
-import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { useCustomAuth } from "../context/AuthContext";
-import type { ConfirmationResult } from "firebase/auth";
-
-// Khởi tạo Recaptcha ngoài component để tránh lỗi re-render
-let recaptchaVerifierInstance: RecaptchaVerifier | null = null;
 
 export default function Scanner() {
   const { user } = useCustomAuth();
@@ -17,16 +11,7 @@ export default function Scanner() {
     "IDLE",
   );
   const [weightResult, setWeightResult] = useState<string | null>(null);
-
-  // State cho Modal Xác thực SĐT
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [parsedData, setParsedData] = useState<any>(null);
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [otp, setOtp] = useState("");
-  const [isOtpSent, setIsOtpSent] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [confirmationResult, setConfirmationResult] =
-    useState<ConfirmationResult | null>(null);
+  const [isSubmittingScan, setIsSubmittingScan] = useState(false);
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -53,40 +38,16 @@ export default function Scanner() {
   const scannerInputRef = useRef<HTMLInputElement>(null);
   const [scanBuffer, setScanBuffer] = useState("");
 
-  // Parse chuỗi CCCD dạng:
-  // [CCCD]|[CMND cũ]|[Họ và tên]|[Ngày sinh DDMMYYYY]|[Giới tính]|[Địa chỉ]|[Ngày cấp DDMMYYYY]
-  const parseCccdQr = (raw: string) => {
-    const parts = raw.split("|").map((p) => p.trim());
-    const [idCard, oldIdCard, fullName, dobRaw, gender, address, issueDateRaw] =
-      parts;
-
-    // Đổi DDMMYYYY -> YYYY-MM-DD để khớp định dạng BE thường dùng
-    const toIsoDate = (d?: string) => {
-      if (!d || d.length !== 8) return "";
-      const day = d.slice(0, 2);
-      const month = d.slice(2, 4);
-      const year = d.slice(4, 8);
-      return `${year}-${month}-${day}`;
-    };
-
-    return {
-      idCard: idCard || "",
-      oldIdCard: oldIdCard || "", // Có thể rỗng nếu không có CMND cũ
-      fullName: fullName || "",
-      dob: toIsoDate(dobRaw),
-      gender: gender || "",
-      address: address || "",
-      issueDate: toIsoDate(issueDateRaw),
-    };
-  };
-
   // Xử lý dữ liệu sau khi máy quét gửi xong 1 lần quét (kết thúc bằng Enter)
+  // Gọi đúng endpoint BE: POST /api/measurements/scan-qr
+  // BE sẽ tự tạo bệnh nhân mới nếu CCCD chưa từng đo (không cần OTP tại kiosk)
+  // và khởi tạo phiên đo ngay lập tức, trả về MeasurementSessionResponseDTO.
   const processScanRaw = async (rawInput: string) => {
     const fixedText = rawInput.trim();
-    if (!fixedText) return;
+    if (!fixedText || isSubmittingScan) return;
 
-    // Validate nhanh: mã CCCD hợp lệ phải tách được ít nhất 5 trường
-    if (fixedText.split("|").length < 5) {
+    // Validate nhanh: mã CCCD hợp lệ phải tách được ít nhất 7 trường
+    if (fixedText.split("|").length < 7) {
       showModal(
         "Dữ liệu quét không hợp lệ (không đúng định dạng CCCD). Vui lòng quét lại!",
         "warning",
@@ -94,48 +55,43 @@ export default function Scanner() {
       return;
     }
 
+    setIsSubmittingScan(true);
     try {
-      const response = await axiosClient.post(
-        "/api/measurements/check-qr-auth",
-        {
-          deviceId: deviceId,
-          rawQrData: fixedText,
-        },
-      );
+      const response = await axiosClient.post("/api/measurements/scan-qr", {
+        deviceId: deviceId,
+        rawQrData: fixedText,
+      });
 
-      // Chặn bệnh nhân quét CCCD của người khác
+      const session = response.data; // MeasurementSessionResponseDTO
+
+      // Chặn bệnh nhân quét CCCD của người khác (khi đang đăng nhập là patient)
       if (user && user.role === "ROLE_PATIENT") {
-        const scannedName = response.data.isNew
-          ? response.data.parsedData.fullName
-          : response.data.session.patientName;
-
-        if (scannedName !== user.fullName) {
+        if (session.patientName !== user.fullName) {
           showModal(
-            `Lỗi xác thực: Bạn đang đăng nhập là ${user.fullName}, không thể quét CCCD của ${scannedName}!`,
+            `Lỗi xác thực: Bạn đang đăng nhập là ${user.fullName}, không thể quét CCCD của ${session.patientName}!`,
             "error",
           );
-          setStatus("IDLE");
           return;
         }
       }
 
-      if (response.data.isNew) {
-        setParsedData(response.data.parsedData ?? parseCccdQr(fixedText));
-        setShowAuthModal(true);
-      } else {
-        setPatientName(response.data.session.patientName);
-        setStatus("PENDING");
-      }
+      setPatientName(session.patientName);
+      setStatus("PENDING");
     } catch (error: any) {
-      showModal("Lỗi mạng/Hệ thống: " + error.message, "error");
-      setStatus("IDLE");
+      const backendMsg =
+        typeof error.response?.data === "string"
+          ? error.response.data
+          : error.response?.data?.message;
+      showModal(backendMsg || "Lỗi mạng/Hệ thống: " + error.message, "error");
+    } finally {
+      setIsSubmittingScan(false);
     }
   };
 
   // Giữ focus liên tục vào ô input ẩn để bất kỳ lúc nào máy quét "gõ"
   // dữ liệu vào, trình duyệt cũng nhận được (chỉ khi đang chờ quét)
   useEffect(() => {
-    if (status !== "IDLE" || showAuthModal) return;
+    if (status !== "IDLE") return;
 
     const focusHiddenInput = () => scannerInputRef.current?.focus();
     focusHiddenInput();
@@ -148,7 +104,7 @@ export default function Scanner() {
       clearInterval(intervalId);
       document.removeEventListener("click", focusHiddenInput);
     };
-  }, [status, showAuthModal]);
+  }, [status]);
 
   const handleScannerFormSubmit = (e: React.FormEvent) => {
     e.preventDefault(); // Máy quét gửi phím Enter -> form submit thay vì reload trang
@@ -180,80 +136,6 @@ export default function Scanner() {
     };
   }, [status, deviceId]);
 
-  // Gửi OTP
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const phoneRegex = /^0(3[2-9]|5[25689]|7[06789]|8[1-9]|9\d)\d{7}$/;
-    if (!phoneRegex.test(phoneNumber)) {
-      return showModal("Số điện thoại không hợp lệ!", "warning");
-    }
-
-    setIsLoading(true);
-    try {
-      // Check trùng SĐT
-      await axiosClient.get(`/auth/check-duplicate?identifier=${phoneNumber}`);
-
-      // Gửi OTP Firebase
-      if (!recaptchaVerifierInstance) {
-        recaptchaVerifierInstance = new RecaptchaVerifier(
-          auth,
-          "recaptcha-container-scanner",
-          { size: "invisible" },
-        );
-      }
-      const formattedPhone = "+84" + phoneNumber.substring(1);
-      const confirmation = await signInWithPhoneNumber(
-        auth,
-        formattedPhone,
-        recaptchaVerifierInstance,
-      );
-
-      setConfirmationResult(confirmation);
-      setIsOtpSent(true);
-    } catch (error: any) {
-      showModal(error.response?.data || "Lỗi gửi OTP!", "error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Xác nhận OTP & Bắt đầu phiên đo
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp) return showModal("Vui lòng nhập OTP!", "warning");
-
-    setIsLoading(true);
-    try {
-      // Xác thực OTP Firebase
-      if (confirmationResult) await confirmationResult.confirm(otp);
-
-      // Đăng ký bệnh nhân mới
-      const payload = {
-        fullName: parsedData.fullName,
-        identifier: phoneNumber,
-        dob: parsedData.dob, // Nhớ format lại YYYY-MM-DD ở BE
-        gender: parsedData.gender,
-        otp: otp,
-      };
-      await axiosClient.post("/auth/register", payload);
-
-      // Bắt đầu phiên cân đo ngay lập tức
-      await axiosClient.post("/api/measurements/start", {
-        deviceId: deviceId,
-        patientId: parsedData.idCard, // Hoặc lấy patientId sau khi register trả về
-      });
-
-      setPatientName(parsedData.fullName);
-      setShowAuthModal(false);
-      setStatus("PENDING");
-    } catch (error: any) {
-      showModal("OTP không chính xác hoặc lỗi hệ thống!", "error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div style={styles.appContainer}>
       <div style={styles.card}>
@@ -266,7 +148,7 @@ export default function Scanner() {
           </div>
         )}
 
-        {status === "IDLE" && !showAuthModal && (
+        {status === "IDLE" && (
           <>
             <div style={styles.configSection}>
               <p style={styles.configLabel}>Quét thẻ CCCD để bắt đầu</p>
@@ -277,7 +159,9 @@ export default function Scanner() {
                     fontSize: "13px",
                   }}
                 >
-                  Đưa mặt trước CCCD (mã QR) vào đầu đọc máy quét...
+                  {isSubmittingScan
+                    ? "Đang xử lý dữ liệu, vui lòng đợi..."
+                    : "Đưa mặt trước CCCD (mã QR) vào đầu đọc máy quét..."}
                 </p>
               </div>
               {/* Form ẩn: máy quét mã vạch hoạt động như bàn phím, gõ chuỗi
@@ -288,6 +172,7 @@ export default function Scanner() {
                   value={scanBuffer}
                   onChange={(e) => setScanBuffer(e.target.value)}
                   autoFocus
+                  disabled={isSubmittingScan}
                   // Ẩn hoàn toàn khỏi mắt người dùng nhưng vẫn nhận được
                   // sự kiện bàn phím vì vẫn nằm trong luồng DOM & có focus
                   style={{
@@ -317,88 +202,6 @@ export default function Scanner() {
               />
             </div>
           </>
-        )}
-
-        {/* MODAL XÁC THỰC SỐ ĐIỆN THOẠI TRỰC TIẾP */}
-        {showAuthModal && parsedData && (
-          <div style={styles.authModal}>
-            <h3 style={{ color: "#0f766e", marginBottom: "10px" }}>
-              👋 Chào {parsedData.fullName},
-            </h3>
-            <p
-              style={{
-                fontSize: "14px",
-                color: "#64748b",
-                marginBottom: "20px",
-              }}
-            >
-              Đây là lần đầu bạn sử dụng hệ thống. Vui lòng xác thực số điện
-              thoại để lưu trữ hồ sơ y tế!
-            </p>
-
-            <form onSubmit={!isOtpSent ? handleSendOtp : handleVerifyOtp}>
-              {!isOtpSent ? (
-                <>
-                  <input
-                    style={styles.inputField}
-                    placeholder="Nhập số điện thoại của bạn..."
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    style={styles.btnSuccess}
-                  >
-                    {isLoading ? "ĐANG GỬI..." : "GỬI MÃ OTP"}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p
-                    style={{
-                      fontSize: "13px",
-                      color: "#475569",
-                      marginBottom: "10px",
-                    }}
-                  >
-                    Mã xác thực đã gửi tới <b>{phoneNumber}</b>
-                  </p>
-                  <input
-                    style={{
-                      ...styles.inputField,
-                      textAlign: "center",
-                      letterSpacing: "8px",
-                      fontSize: "20px",
-                    }}
-                    placeholder="******"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    style={styles.btnSuccess}
-                  >
-                    {isLoading ? "ĐANG XÁC THỰC..." : "HOÀN TẤT & ĐO CÂN NẶNG"}
-                  </button>
-                </>
-              )}
-            </form>
-            <button
-              onClick={() => {
-                setShowAuthModal(false);
-                setStatus("IDLE");
-              }}
-              style={styles.btnCancel}
-            >
-              Hủy bỏ
-            </button>
-            <div id="recaptcha-container-scanner"></div>
-          </div>
         )}
 
         {status === "PENDING" && (
@@ -455,7 +258,7 @@ export default function Scanner() {
   );
 }
 
-// Giữ nguyên Object styles cũ của bro, thêm CSS cho Modal Auth
+// Giữ nguyên Object styles cũ
 const styles: Record<string, React.CSSProperties> = {
   appContainer: {
     display: "flex",
@@ -525,12 +328,6 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     marginBottom: "15px",
   },
-  authModal: {
-    padding: "20px",
-    backgroundColor: "#f8fafc",
-    borderRadius: "16px",
-    border: "1px solid #e2e8f0",
-  },
   btnSuccess: {
     width: "100%",
     padding: "14px",
@@ -543,16 +340,6 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     boxShadow: "0 4px 10px rgba(13, 148, 136, 0.2)",
     transition: "0.2s",
-  },
-  btnCancel: {
-    width: "100%",
-    padding: "10px",
-    backgroundColor: "transparent",
-    color: "#94a3b8",
-    border: "none",
-    marginTop: "10px",
-    cursor: "pointer",
-    fontWeight: 600,
   },
   pendingCard: {
     padding: "30px 20px",
