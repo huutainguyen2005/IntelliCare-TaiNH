@@ -233,23 +233,36 @@ public class AuthController {
     public ResponseEntity<?> setPassword(@RequestBody Map<String, String> request) {
         String identifier = request.get("identifier");
         String newPassword = request.get("password");
+        String otp = request.get("otp");
 
         if (identifier == null || newPassword == null || newPassword.length() < 6) {
             return ResponseEntity.badRequest().body("Thông tin không hợp lệ hoặc mật khẩu quá ngắn (>= 6 ký tự)!");
         }
 
-        Patient patient;
-        if (identifier.contains("@")) {
-            patient = patientRepository.findByEmail(identifier).orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại!"));
-        } else {
-            patient = patientRepository.findByPhoneNumber(identifier).orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại!"));
+        boolean isEmail = identifier.contains("@");
+
+        // BẮT BUỘC xác thực OTP với Email trước khi cho đổi mật khẩu.
+        // (Với SĐT: OTP đã được xác thực ở phía Client qua Firebase SMS
+        // trước khi gọi API này, nên không cần kiểm tra lại OTP ở đây.)
+        if (isEmail) {
+            if (otp == null || !otpService.verifyOtp(identifier, otp)) {
+                return ResponseEntity.badRequest().body("Mã OTP không chính xác hoặc đã hết hạn!");
+            }
+        }
+
+        Patient patient = isEmail
+                ? patientRepository.findByEmail(identifier).orElse(null)
+                : patientRepository.findByPhoneNumber(identifier).orElse(null);
+
+        if (patient == null) {
+            return ResponseEntity.badRequest().body("Không tìm thấy tài khoản với thông tin này!");
         }
 
         patient.setPassword(passwordEncoder.encode(newPassword));
         patient.setAccountStatus(AccountStatus.ACTIVE); // CHUYỂN SANG ENUM ACTIVE
         patientRepository.save(patient);
 
-        return ResponseEntity.ok(Map.of("message", "Thiết lập mật khẩu thành công!"));
+        return ResponseEntity.ok(Map.of("message", "Đặt lại mật khẩu thành công!"));
     }
 
     @PostMapping("/send-otp")

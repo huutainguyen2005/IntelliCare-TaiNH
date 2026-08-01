@@ -6,9 +6,10 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Navbar from "./components/Navbar";
 import StaffDashboard from "./pages/StaffDashboard";
-import StaffManagement from "./pages/StaffManagement";
 import PatientDetail from "./pages/PatientDetail";
 import PatientActivation from "./pages/PatientActivation";
+import StaffManagement from "./pages/StaffManagement";
+import ForgotPassword from "./pages/ForgotPassword";
 
 // "kiosk"  -> máy quét tại trạm cân: CHỈ hiện /scanner, fullscreen, không có Navbar
 // "web"    -> web app cho bệnh nhân/nhân viên: KHÔNG có /scanner
@@ -62,6 +63,7 @@ function WebApp() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/activate" element={<PatientActivation />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         <Route
           path="/profile"

@@ -1,4 +1,3 @@
-// Thêm chữ "type" trước ReactNode
 import {
   createContext,
   useContext,
@@ -15,7 +14,12 @@ interface User {
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (token: string, role: string, fullName: string) => void;
+  login: (
+    token: string,
+    role: string,
+    fullName: string,
+    rememberMe?: boolean,
+  ) => void;
   logout: () => void;
 }
 
@@ -37,10 +41,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const login = (token: string, role: string, fullName: string) => {
-    localStorage.setItem("jwtToken", token);
-    localStorage.setItem("userRole", role);
-    localStorage.setItem("userFullName", fullName);
+  // rememberMe = true (tick "Ghi nhớ đăng nhập"): lưu vào localStorage,
+  // còn đăng nhập kể cả sau khi đóng trình duyệt, tới khi bấm Đăng xuất.
+  // rememberMe = false (không tick): KHÔNG lưu vào ổ đĩa - chỉ giữ trong
+  // state của React, mất ngay khi tải lại trang/đóng tab.
+  const login = (
+    token: string,
+    role: string,
+    fullName: string,
+    rememberMe: boolean = true,
+  ) => {
+    if (rememberMe) {
+      localStorage.setItem("jwtToken", token);
+      localStorage.setItem("userRole", role);
+      localStorage.setItem("userFullName", fullName);
+    }
+
     setIsAuthenticated(true);
     setUser({ role, fullName });
   };

@@ -10,12 +10,11 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
 
   const [loginType, setLoginType] = useState<"patient" | "staff">("patient");
-  const [authMethod, setAuthMethod] = useState<"password" | "otp">("password"); // Thêm state chọn phương thức
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   // Modal nhắc kích hoạt tài khoản khi bệnh nhân cố đăng nhập mà đăng nhập lỗi
   // (phòng trường hợp họ phớt lờ dòng link "Kích hoạt tài khoản" phía dưới form)
@@ -29,27 +28,15 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      if (authMethod === "password") {
-        // LOGIN PASSWORD
-        const endpoint =
-          loginType === "staff" ? "/auth/staff/login" : "/auth/patient/login";
-        const response = await axiosClient.post(endpoint, {
-          identifier: identifier.trim(),
-          password,
-        });
-        const { token, role, fullName } = response.data;
-        login(token, role, fullName);
-        navigate("/profile");
-      } else {
-        // LOGIN OTP
-        const response = await axiosClient.post("/auth/patient/login-otp", {
-          identifier: identifier.trim(),
-          otp,
-        });
-        const { token, role, fullName } = response.data;
-        login(token, role, fullName);
-        navigate("/profile");
-      }
+      const endpoint =
+        loginType === "staff" ? "/auth/staff/login" : "/auth/patient/login";
+      const response = await axiosClient.post(endpoint, {
+        identifier: identifier.trim(),
+        password,
+      });
+      const { token, role, fullName } = response.data;
+      login(token, role, fullName, rememberMe);
+      navigate("/profile");
     } catch (error: any) {
       const errorCode = error.response?.data?.errorCode;
       const backendMsg = error.response?.data?.message;
@@ -91,10 +78,7 @@ const Login: React.FC = () => {
               ...styles.tabBtn,
               ...(loginType === "patient" ? styles.tabBtnActive : {}),
             }}
-            onClick={() => {
-              setLoginType("patient");
-              setAuthMethod("password");
-            }}
+            onClick={() => setLoginType("patient")}
           >
             👤 Bệnh nhân
           </button>
@@ -103,70 +87,53 @@ const Login: React.FC = () => {
               ...styles.tabBtn,
               ...(loginType === "staff" ? styles.tabBtnActive : {}),
             }}
-            onClick={() => {
-              setLoginType("staff");
-              setAuthMethod("password");
-            }}
+            onClick={() => setLoginType("staff")}
           >
             🩺 Nhân viên
           </button>
         </div>
 
-        {loginType === "patient" && (
-          <div style={{ marginBottom: "20px", textAlign: "center" }}>
-            <button
-              onClick={() => setAuthMethod("password")}
-              style={
-                authMethod === "password"
-                  ? styles.btnLinkActive
-                  : styles.btnLink
-              }
-            >
-              Mật khẩu
-            </button>{" "}
-            |
-            <button
-              onClick={() => setAuthMethod("otp")}
-              style={
-                authMethod === "otp" ? styles.btnLinkActive : styles.btnLink
-              }
-            >
-              {" "}
-              Đăng nhập OTP
-            </button>
-          </div>
-        )}
-
         <form onSubmit={handleLogin}>
           <div style={styles.inputGroup}>
             <input
               style={styles.inputField}
-              placeholder="Số điện thoại hoặc Email..."
+              placeholder={
+                loginType === "staff"
+                  ? "Tài khoản đăng nhập"
+                  : "Số điện thoại hoặc Email..."
+              }
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               required
             />
           </div>
 
-          {authMethod === "password" ? (
-            <input
-              style={styles.inputField}
-              type="password"
-              placeholder="Mật khẩu"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          ) : (
-            <input
-              style={styles.inputField}
-              type="text"
-              placeholder="Nhập mã OTP"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              required
-            />
+          <input
+            style={styles.inputField}
+            type="password"
+            placeholder="Mật khẩu"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+
+          {loginType === "patient" && (
+            <div style={{ textAlign: "right", marginTop: "-6px" }}>
+              <Link to="/forgot-password" style={styles.forgotPasswordLink}>
+                Quên mật khẩu?
+              </Link>
+            </div>
           )}
+
+          <label style={styles.rememberMeRow}>
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              style={{ cursor: "pointer" }}
+            />
+            Ghi nhớ đăng nhập
+          </label>
 
           <button type="submit" style={styles.btnSubmit} disabled={isLoading}>
             {isLoading ? "ĐANG XỬ LÝ..." : "ĐĂNG NHẬP"}
@@ -239,7 +206,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: "#f1f5f9",
     padding: "4px",
     borderRadius: "12px",
-    marginBottom: "20px", // Ép khoảng cách
+    marginBottom: "20px",
     border: "1px solid #e2e8f0",
   },
   tabBtn: {
@@ -264,15 +231,21 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   inputField: {
     width: "100%",
-    padding: "12px 14px", // Ép nhỏ input
+    padding: "12px 14px",
     fontSize: "14px",
     border: "2px solid #e2e8f0",
     borderRadius: "10px",
     background: "#f8fafc",
     color: "#0f172a",
     boxSizing: "border-box",
-    marginBottom: "12px", // Ép khoảng cách
+    marginBottom: "12px",
     fontWeight: "500",
+  },
+  forgotPasswordLink: {
+    fontSize: "12px",
+    color: "#0d9488",
+    fontWeight: 700,
+    textDecoration: "none",
   },
   btnSubmit: {
     width: "100%",
@@ -287,26 +260,23 @@ const styles: { [key: string]: React.CSSProperties } = {
     boxShadow: "0 4px 12px rgba(13, 148, 136, 0.2)",
     marginTop: "8px",
   },
-  btnLink: {
-    background: "none",
-    border: "none",
-    color: "#94a3b8",
-    cursor: "pointer",
-    fontSize: "13px",
-  },
-  btnLinkActive: {
-    background: "none",
-    border: "none",
-    color: "#0d9488",
-    cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: "bold",
-  },
   activateHintRow: {
     textAlign: "center",
     fontSize: "13px",
     color: "#64748b",
     marginTop: "18px",
+  },
+  rememberMeRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontSize: "13px",
+    fontWeight: 600,
+    color: "#475569",
+    marginTop: "12px",
+    marginBottom: "4px",
+    cursor: "pointer",
+    userSelect: "none",
   },
   activateInlineLink: {
     color: "#0d9488",
