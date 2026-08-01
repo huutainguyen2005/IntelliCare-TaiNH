@@ -52,6 +52,10 @@ const Login: React.FC = () => {
           backendMsg ||
             "Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau ít phút.",
         );
+      } else if (errorCode === "ACCOUNT_DISABLED") {
+        setErrorMsg(
+          backendMsg || "Tài khoản đã bị khóa. Vui lòng liên hệ hỗ trợ!",
+        );
       } else if (errorCode === "INVALID_CREDENTIALS") {
         // Gộp chung "không tìm thấy TK" + "sai mật khẩu" -> chống dò tài khoản
         setErrorMsg("Tài khoản hoặc mật khẩu không chính xác!");
@@ -117,11 +121,15 @@ const Login: React.FC = () => {
             required
           />
 
-          {loginType === "patient" && (
-            <div style={{ textAlign: "right", marginTop: "-6px" }}>
-              <Link to="/forgot-password" style={styles.forgotPasswordLink}>
-                Quên mật khẩu?
-              </Link>
+          <div style={{ textAlign: "right", marginTop: "-6px" }}>
+            <Link to="/forgot-password" style={styles.forgotPasswordLink}>
+              Quên mật khẩu?
+            </Link>
+          </div>
+
+          {loginType === "staff" && (
+            <div style={styles.staffForgotHint}>
+              Quên mật khẩu? Vui lòng liên hệ Admin để được cấp lại.
             </div>
           )}
 
@@ -246,6 +254,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "#0d9488",
     fontWeight: 700,
     textDecoration: "none",
+  },
+  staffForgotHint: {
+    fontSize: "12px",
+    color: "#94a3b8",
+    marginTop: "-6px",
+    marginBottom: "8px",
+    textAlign: "right",
+    fontStyle: "italic",
   },
   btnSubmit: {
     width: "100%",

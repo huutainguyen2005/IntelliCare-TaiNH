@@ -9,6 +9,8 @@ interface StaffItem {
   role: "ADMIN" | "DOCTOR" | "NURSE";
   managerId: number | null;
   gender: boolean; // true = Nam, false = Nữ (khớp cột bit trong DB)
+  email: string | null;
+  isActive: boolean;
 }
 
 interface StaffFormState {
@@ -19,6 +21,7 @@ interface StaffFormState {
   role: "DOCTOR" | "NURSE";
   gender: boolean;
   managerId: string; // giữ dạng string cho input, convert lúc submit
+  email: string;
 }
 
 const emptyForm: StaffFormState = {
@@ -29,6 +32,7 @@ const emptyForm: StaffFormState = {
   role: "NURSE",
   gender: true,
   managerId: "",
+  email: "",
 };
 
 export default function StaffManagement() {
@@ -41,6 +45,12 @@ export default function StaffManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  // Modal "Đặt lại mật khẩu" riêng - dành cho tình huống Nhân viên quên
+  // mật khẩu và nhờ Admin cấp lại (nhanh gọn hơn so với mở form Sửa đầy đủ)
+  const [resetPwStaff, setResetPwStaff] = useState<StaffItem | null>(null);
+  const [resetPwValue, setResetPwValue] = useState("");
+  const [isResettingPw, setIsResettingPw] = useState(false);
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -94,6 +104,7 @@ export default function StaffManagement() {
       role: staff.role === "ADMIN" ? "NURSE" : staff.role,
       gender: staff.gender,
       managerId: staff.managerId ? String(staff.managerId) : "",
+      email: staff.email || "",
     });
     setShowFormModal(true);
   };
@@ -132,6 +143,7 @@ export default function StaffManagement() {
           role: form.role,
           gender: form.gender,
           managerId: form.managerId ? Number(form.managerId) : null,
+          email: form.email.trim() || null,
         });
 
         showModal("Tạo tài khoản thành công!", "success");
@@ -142,6 +154,7 @@ export default function StaffManagement() {
           role: form.role,
           gender: form.gender,
           managerId: form.managerId ? Number(form.managerId) : null,
+          email: form.email.trim() || null,
         };
         if (form.password.trim()) {
           if (form.password.trim().length < 6) {
@@ -176,6 +189,55 @@ export default function StaffManagement() {
       const backendMsg = error.response?.data?.message;
       showModal(backendMsg || "Không thể xóa tài khoản này!", "error");
       setConfirmDeleteId(null);
+    }
+  };
+
+  const handleToggleActive = async (staff: StaffItem) => {
+    try {
+      const res = await axiosClient.patch(
+        `/api/staff/${staff.staffId}/toggle-active`,
+      );
+      showModal(res.data.message, "success");
+      fetchStaffList();
+    } catch (error: any) {
+      const backendMsg = error.response?.data?.message;
+      showModal(
+        backendMsg || "Không thể thay đổi trạng thái tài khoản!",
+        "error",
+      );
+    }
+  };
+
+  const openResetPassword = (staff: StaffItem) => {
+    setResetPwStaff(staff);
+    setResetPwValue("");
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPwStaff) return;
+
+    if (resetPwValue.trim().length < 6) {
+      showModal("Mật khẩu mới phải có ít nhất 6 ký tự!", "warning");
+      return;
+    }
+
+    setIsResettingPw(true);
+    try {
+      await axiosClient.put(`/api/staff/${resetPwStaff.staffId}`, {
+        password: resetPwValue.trim(),
+      });
+      showModal(
+        `Đã đặt lại mật khẩu cho "${resetPwStaff.fullName}" thành công! Hãy báo mật khẩu mới cho họ.`,
+        "success",
+      );
+      setResetPwStaff(null);
+      setResetPwValue("");
+    } catch (error: any) {
+      const backendMsg = error.response?.data?.message;
+      showModal(backendMsg || "Không thể đặt lại mật khẩu!", "error");
+    } finally {
+      setIsResettingPw(false);
     }
   };
 
@@ -217,13 +279,31 @@ export default function StaffManagement() {
             {filteredList.map((s) => (
               <div key={s.staffId} style={styles.staffCard}>
                 <div>
-                  <div style={styles.staffName}>{s.fullName}</div>
+                  <div style={styles.staffName}>
+                    {s.fullName}
+                    {!s.isActive && (
+                      <span style={styles.lockedTag}>ĐÃ KHÓA</span>
+                    )}
+                  </div>
                   <div style={styles.staffMeta}>
                     @{s.username} · {roleLabel(s.role)} ·{" "}
                     {s.gender ? "Nam" : "Nữ"}
+                    {s.email ? ` · ${s.email}` : ""}
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: "8px" }}>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <button
+                    style={s.isActive ? styles.btnLock : styles.btnUnlock}
+                    onClick={() => handleToggleActive(s)}
+                  >
+                    {s.isActive ? "Khóa" : "Mở khóa"}
+                  </button>
+                  <button
+                    style={styles.btnResetPw}
+                    onClick={() => openResetPassword(s)}
+                  >
+                    Đặt lại mật khẩu
+                  </button>
                   <button
                     style={styles.btnEdit}
                     onClick={() => openEditForm(s)}
@@ -282,6 +362,17 @@ export default function StaffManagement() {
                 value={form.fullName}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                 required
+              />
+
+              <label style={styles.label}>
+                Email (dùng để nhận OTP khi quên mật khẩu)
+              </label>
+              <input
+                type="email"
+                style={styles.input}
+                placeholder="VD: nguyenvan@gmail.com"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
 
               <label style={styles.label}>Vai trò</label>
@@ -344,6 +435,57 @@ export default function StaffManagement() {
                     : form.staffId === null
                       ? "Tạo tài khoản"
                       : "Lưu thay đổi"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ĐẶT LẠI MẬT KHẨU - dành cho Nhân viên quên mật khẩu */}
+      {resetPwStaff && (
+        <div style={styles.overlay} onClick={() => setResetPwStaff(null)}>
+          <div style={styles.formCard} onClick={(e) => e.stopPropagation()}>
+            <h3 style={styles.formTitle}>
+              Đặt lại mật khẩu cho "{resetPwStaff.fullName}"
+            </h3>
+            <p
+              style={{
+                fontSize: "13px",
+                color: "#64748b",
+                marginTop: "-10px",
+                marginBottom: "16px",
+              }}
+            >
+              Nhập mật khẩu mới rồi báo trực tiếp cho nhân viên này.
+            </p>
+
+            <form onSubmit={handleResetPassword}>
+              <label style={styles.label}>Mật khẩu mới</label>
+              <input
+                type="password"
+                style={styles.input}
+                value={resetPwValue}
+                onChange={(e) => setResetPwValue(e.target.value)}
+                placeholder="Ít nhất 6 ký tự"
+                autoFocus
+                required
+              />
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+                <button
+                  type="button"
+                  style={styles.btnCancel}
+                  onClick={() => setResetPwStaff(null)}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  style={styles.btnSubmit}
+                  disabled={isResettingPw}
+                >
+                  {isResettingPw ? "Đang xử lý..." : "Xác nhận"}
                 </button>
               </div>
             </form>
@@ -474,6 +616,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     cursor: "pointer",
   },
+  btnResetPw: {
+    background: "#fffbeb",
+    color: "#b45309",
+    border: "1px solid #fde68a",
+    borderRadius: "8px",
+    padding: "8px 14px",
+    fontSize: "13px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
   btnDelete: {
     background: "#fef2f2",
     color: "#ef4444",
@@ -483,6 +635,36 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "13px",
     fontWeight: 700,
     cursor: "pointer",
+  },
+  btnLock: {
+    background: "#f1f5f9",
+    color: "#475569",
+    border: "1px solid #cbd5e1",
+    borderRadius: "8px",
+    padding: "8px 14px",
+    fontSize: "13px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  btnUnlock: {
+    background: "#f0fdf4",
+    color: "#16a34a",
+    border: "1px solid #bbf7d0",
+    borderRadius: "8px",
+    padding: "8px 14px",
+    fontSize: "13px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  lockedTag: {
+    marginLeft: "8px",
+    fontSize: "10px",
+    padding: "2px 8px",
+    background: "#fef2f2",
+    color: "#ef4444",
+    borderRadius: "6px",
+    fontWeight: 800,
+    letterSpacing: "0.5px",
   },
   overlay: {
     position: "fixed",

@@ -168,6 +168,32 @@ public class StaffController {
         return ResponseEntity.ok(Map.of("message", "Đã xóa nhân viên thành công!"));
     }
 
+    @PatchMapping("/{id}/toggle-active")
+    public ResponseEntity<?> toggleActive(@PathVariable Integer id) {
+        Staff staff = staffRepository.findById(id).orElse(null);
+        if (staff == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Không tìm thấy nhân viên!"));
+        }
+
+        // Chặn cứng - KHÔNG BAO GIỜ được khóa tài khoản ADMIN, mất hết Admin
+        // là không ai còn quyền quản lý hệ thống nữa.
+        if (staff.getRole() == Role.ADMIN) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", "Không thể khóa tài khoản Admin!"
+            ));
+        }
+
+        boolean newStatus = !Boolean.TRUE.equals(staff.getIsActive());
+        staff.setIsActive(newStatus);
+        staffRepository.save(staff);
+
+        return ResponseEntity.ok(Map.of(
+                "message", newStatus ? "Đã mở khóa tài khoản!" : "Đã khóa tài khoản!",
+                "isActive", newStatus
+        ));
+    }
+
     private StaffResponseDTO toDTO(Staff s) {
         return new StaffResponseDTO(
                 s.getStaffId(),
@@ -176,7 +202,8 @@ public class StaffController {
                 s.getRole(),
                 s.getManager() != null ? s.getManager().getStaffId() : null,
                 s.getGender(),
-                s.getEmail()
+                s.getEmail(),
+                s.getIsActive()
         );
     }
 }

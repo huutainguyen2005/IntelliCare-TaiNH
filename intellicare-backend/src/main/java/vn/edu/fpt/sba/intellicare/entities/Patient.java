@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 import vn.edu.fpt.sba.intellicare.enums.AccountStatus;
 
 import java.time.LocalDate;
@@ -58,9 +57,15 @@ public class Patient {
     @Column(name = "account_status", length = 50, columnDefinition = "varchar(50)")
     private AccountStatus accountStatus;
 
-    @CreationTimestamp
+    @org.hibernate.annotations.CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "activated_at")
+    private LocalDateTime activatedAt;
+
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
 
     // Mối quan hệ 1 bệnh nhân có nhiều lịch sử cân nặng
     @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL)

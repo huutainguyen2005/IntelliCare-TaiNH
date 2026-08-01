@@ -88,6 +88,15 @@ public class AuthController {
 
         Staff staff = staffRepository.findByUsername(identifier).orElse(null);
 
+        // Tài khoản đã bị Admin khóa (ADMIN thì không bao giờ bị khóa được -
+        // đã chặn ở StaffController nên không cần check riêng ở đây)
+        if (staff != null && Boolean.FALSE.equals(staff.getIsActive())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "errorCode", "ACCOUNT_DISABLED",
+                    "message", "Tài khoản đã bị khóa. Vui lòng liên hệ Quản trị viên để được hỗ trợ!"
+            ));
+        }
+
         // Dùng dummy hash nếu username không tồn tại để tránh timing attack
         String hashToCheck = (staff != null)
                 ? staff.getPassword()
@@ -190,6 +199,14 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                     "errorCode", "NOT_ACTIVATED",
                     "message", "Tài khoản chưa được kích hoạt. Vui lòng kích hoạt tài khoản trước khi đăng nhập!"
+            ));
+        }
+
+        // TH1b: Tài khoản đã bị Nhân viên khóa
+        if (patient != null && Boolean.FALSE.equals(patient.getIsActive())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "errorCode", "ACCOUNT_DISABLED",
+                    "message", "Tài khoản đã bị khóa. Vui lòng liên hệ nhân viên y tế để được hỗ trợ!"
             ));
         }
 
@@ -403,6 +420,7 @@ public class AuthController {
         patient.setPhoneNumber(request.phoneNumber().trim());
         patient.setPassword(passwordEncoder.encode(request.password().trim()));
         patient.setAccountStatus(AccountStatus.ACTIVE);
+        patient.setActivatedAt(java.time.LocalDateTime.now());
 
         patientRepository.save(patient);
 
