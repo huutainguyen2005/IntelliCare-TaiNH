@@ -59,7 +59,7 @@ public class Patient {
     private AccountStatus accountStatus;
 
     @CreationTimestamp
-    @Column(name = "created_at", insertable = false, updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     // Mối quan hệ 1 bệnh nhân có nhiều lịch sử cân nặng

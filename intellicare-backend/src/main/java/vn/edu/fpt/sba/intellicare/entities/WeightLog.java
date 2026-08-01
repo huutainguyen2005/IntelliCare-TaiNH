@@ -29,6 +29,6 @@ public class WeightLog {
     private Double weightKg;
 
     @CreationTimestamp
-    @Column(name = "measured_at", insertable = false, updatable = false)
+    @Column(name = "measured_at", updatable = false)
     private LocalDateTime measuredAt;
 }

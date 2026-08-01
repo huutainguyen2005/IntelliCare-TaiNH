@@ -31,6 +31,6 @@ public class MeasurementSession {
     private SessionStatus status = SessionStatus.Pending;
 
     @CreationTimestamp
-    @Column(name = "created_at", insertable = false, updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 }
