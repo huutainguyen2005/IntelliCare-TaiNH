@@ -37,6 +37,7 @@ public class Patient {
     @Column(name = "id_card", unique = true, length = 20)
     private String idCard;
 
+    @Nationalized
     @Column(name = "address", columnDefinition = "NVARCHAR(255)")
     private String address;
 
