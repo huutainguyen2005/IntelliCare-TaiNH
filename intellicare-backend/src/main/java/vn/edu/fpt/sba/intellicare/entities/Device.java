@@ -1,11 +1,12 @@
 package vn.edu.fpt.sba.intellicare.entities;
 
 import jakarta.persistence.*;
-import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+
+import org.hibernate.annotations.Nationalized;
 
 @Data
 @NoArgsConstructor
@@ -16,6 +17,7 @@ public class Device {
     @Column(name = "device_id", length = 50)
     private String deviceId; // ID khớp với QR Code dán trên cân
 
+    @Nationalized
     @Column(name = "location", length = 100)
     private String location;
 

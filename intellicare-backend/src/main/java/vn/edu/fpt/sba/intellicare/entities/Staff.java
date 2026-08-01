@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.hibernate.annotations.Nationalized;
+
 @Entity
 @Table(name = "Staffs")
 @Data
@@ -22,6 +24,7 @@ public class Staff {
     @Column(name = "password", nullable = false, length = 255)
     private String password;
 
+    @Nationalized
     @Column(name = "full_name", nullable = false, length = 100)
     private String fullName;
 
