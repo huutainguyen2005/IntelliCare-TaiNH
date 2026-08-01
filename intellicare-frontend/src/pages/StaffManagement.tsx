@@ -46,13 +46,21 @@ export default function StaffManagement() {
   const [form, setForm] = useState<StaffFormState>(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmDeleteStaff, setConfirmDeleteStaff] =
+    useState<StaffItem | null>(null);
+  const [confirmToggleStaff, setConfirmToggleStaff] =
+    useState<StaffItem | null>(null);
 
-  // Modal "Đặt lại mật khẩu" riêng - dành cho tình huống Nhân viên quên
-  // mật khẩu và nhờ Admin cấp lại (nhanh gọn hơn so với mở form Sửa đầy đủ)
-  const [resetPwStaff, setResetPwStaff] = useState<StaffItem | null>(null);
-  const [resetPwValue, setResetPwValue] = useState("");
-  const [isResettingPw, setIsResettingPw] = useState(false);
+  // Bộ lọc
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "DOCTOR" | "NURSE">(
+    "ALL",
+  );
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "LOCKED">(
+    "ALL",
+  );
+  const [genderFilter, setGenderFilter] = useState<"ALL" | "MALE" | "FEMALE">(
+    "ALL",
+  );
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -184,25 +192,28 @@ export default function StaffManagement() {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async () => {
+    if (!confirmDeleteStaff) return;
     try {
-      await axiosClient.delete(`/api/staff/${id}`);
+      await axiosClient.delete(`/api/staff/${confirmDeleteStaff.staffId}`);
       showModal("Đã xóa tài khoản thành công!", "success");
-      setConfirmDeleteId(null);
+      setConfirmDeleteStaff(null);
       fetchStaffList();
     } catch (error: any) {
       const backendMsg = error.response?.data?.message;
       showModal(backendMsg || "Không thể xóa tài khoản này!", "error");
-      setConfirmDeleteId(null);
+      setConfirmDeleteStaff(null);
     }
   };
 
-  const handleToggleActive = async (staff: StaffItem) => {
+  const handleToggleActive = async () => {
+    if (!confirmToggleStaff) return;
     try {
       const res = await axiosClient.patch(
-        `/api/staff/${staff.staffId}/toggle-active`,
+        `/api/staff/${confirmToggleStaff.staffId}/toggle-active`,
       );
       showModal(res.data.message, "success");
+      setConfirmToggleStaff(null);
       fetchStaffList();
     } catch (error: any) {
       const backendMsg = error.response?.data?.message;
@@ -210,47 +221,23 @@ export default function StaffManagement() {
         backendMsg || "Không thể thay đổi trạng thái tài khoản!",
         "error",
       );
+      setConfirmToggleStaff(null);
     }
   };
 
-  const openResetPassword = (staff: StaffItem) => {
-    setResetPwStaff(staff);
-    setResetPwValue("");
-  };
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!resetPwStaff) return;
-
-    if (resetPwValue.trim().length < 6) {
-      showModal("Mật khẩu mới phải có ít nhất 6 ký tự!", "warning");
-      return;
-    }
-
-    setIsResettingPw(true);
-    try {
-      await axiosClient.put(`/api/staff/${resetPwStaff.staffId}`, {
-        password: resetPwValue.trim(),
-      });
-      showModal(
-        `Đã đặt lại mật khẩu cho "${resetPwStaff.fullName}" thành công! Hãy báo mật khẩu mới cho họ.`,
-        "success",
-      );
-      setResetPwStaff(null);
-      setResetPwValue("");
-    } catch (error: any) {
-      const backendMsg = error.response?.data?.message;
-      showModal(backendMsg || "Không thể đặt lại mật khẩu!", "error");
-    } finally {
-      setIsResettingPw(false);
-    }
-  };
-
-  const filteredList = staffList.filter(
-    (s) =>
+  const filteredList = staffList.filter((s) => {
+    const matchSearch =
       s.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      s.username.toLowerCase().includes(search.toLowerCase()),
-  );
+      s.username.toLowerCase().includes(search.toLowerCase());
+    const matchRole = roleFilter === "ALL" || s.role === roleFilter;
+    const matchStatus =
+      statusFilter === "ALL" ||
+      (statusFilter === "ACTIVE" ? s.isActive : !s.isActive);
+    const matchGender =
+      genderFilter === "ALL" ||
+      (genderFilter === "MALE" ? s.gender : !s.gender);
+    return matchSearch && matchRole && matchStatus && matchGender;
+  });
 
   const totalPages = Math.max(
     1,
@@ -287,6 +274,47 @@ export default function StaffManagement() {
           }}
         />
 
+        <div style={styles.filterRow}>
+          <select
+            style={styles.filterSelect}
+            value={roleFilter}
+            onChange={(e) => {
+              setRoleFilter(e.target.value as typeof roleFilter);
+              setStaffPage(1);
+            }}
+          >
+            <option value="ALL">Tất cả vai trò</option>
+            <option value="DOCTOR">Bác sĩ</option>
+            <option value="NURSE">Y tá / Điều dưỡng</option>
+          </select>
+
+          <select
+            style={styles.filterSelect}
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as typeof statusFilter);
+              setStaffPage(1);
+            }}
+          >
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="ACTIVE">Đang hoạt động</option>
+            <option value="LOCKED">Đã khóa</option>
+          </select>
+
+          <select
+            style={styles.filterSelect}
+            value={genderFilter}
+            onChange={(e) => {
+              setGenderFilter(e.target.value as typeof genderFilter);
+              setStaffPage(1);
+            }}
+          >
+            <option value="ALL">Tất cả giới tính</option>
+            <option value="MALE">Nam</option>
+            <option value="FEMALE">Nữ</option>
+          </select>
+        </div>
+
         {isLoading ? (
           <p style={styles.loadingText}>Đang tải danh sách...</p>
         ) : filteredList.length === 0 ? (
@@ -311,15 +339,9 @@ export default function StaffManagement() {
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                   <button
                     style={s.isActive ? styles.btnLock : styles.btnUnlock}
-                    onClick={() => handleToggleActive(s)}
+                    onClick={() => setConfirmToggleStaff(s)}
                   >
                     {s.isActive ? "Khóa" : "Mở khóa"}
-                  </button>
-                  <button
-                    style={styles.btnResetPw}
-                    onClick={() => openResetPassword(s)}
-                  >
-                    Đặt lại mật khẩu
                   </button>
                   <button
                     style={styles.btnEdit}
@@ -329,7 +351,7 @@ export default function StaffManagement() {
                   </button>
                   <button
                     style={styles.btnDelete}
-                    onClick={() => setConfirmDeleteId(s.staffId)}
+                    onClick={() => setConfirmDeleteStaff(s)}
                   >
                     Xóa
                   </button>
@@ -488,76 +510,56 @@ export default function StaffManagement() {
         </div>
       )}
 
-      {/* MODAL ĐẶT LẠI MẬT KHẨU - dành cho Nhân viên quên mật khẩu */}
-      {resetPwStaff && (
-        <div style={styles.overlay} onClick={() => setResetPwStaff(null)}>
-          <div style={styles.formCard} onClick={(e) => e.stopPropagation()}>
-            <h3 style={styles.formTitle}>
-              Đặt lại mật khẩu cho "{resetPwStaff.fullName}"
-            </h3>
-            <p
-              style={{
-                fontSize: "13px",
-                color: "#64748b",
-                marginTop: "-10px",
-                marginBottom: "16px",
-              }}
-            >
-              Nhập mật khẩu mới rồi báo trực tiếp cho nhân viên này.
+      {/* MODAL XÁC NHẬN KHÓA/MỞ KHÓA */}
+      {confirmToggleStaff && (
+        <div style={styles.overlay} onClick={() => setConfirmToggleStaff(null)}>
+          <div style={styles.confirmCard} onClick={(e) => e.stopPropagation()}>
+            <p style={styles.confirmText}>
+              Bạn có chắc muốn{" "}
+              {confirmToggleStaff.isActive ? "khóa" : "mở khóa"} tài khoản{" "}
+              <strong>{confirmToggleStaff.fullName}</strong>?
             </p>
-
-            <form onSubmit={handleResetPassword}>
-              <label style={styles.label}>Mật khẩu mới</label>
-              <input
-                type="password"
-                style={styles.input}
-                value={resetPwValue}
-                onChange={(e) => setResetPwValue(e.target.value)}
-                placeholder="Ít nhất 6 ký tự"
-                autoFocus
-                required
-              />
-
-              <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
-                <button
-                  type="button"
-                  style={styles.btnCancel}
-                  onClick={() => setResetPwStaff(null)}
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  style={styles.btnSubmit}
-                  disabled={isResettingPw}
-                >
-                  {isResettingPw ? "Đang xử lý..." : "Xác nhận"}
-                </button>
-              </div>
-            </form>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                style={styles.btnCancel}
+                onClick={() => setConfirmToggleStaff(null)}
+              >
+                Hủy
+              </button>
+              <button
+                style={
+                  confirmToggleStaff.isActive
+                    ? styles.btnLockConfirm
+                    : styles.btnUnlock
+                }
+                onClick={handleToggleActive}
+              >
+                {confirmToggleStaff.isActive
+                  ? "Xác nhận khóa"
+                  : "Xác nhận mở khóa"}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* MODAL XÁC NHẬN XÓA */}
-      {confirmDeleteId !== null && (
-        <div style={styles.overlay} onClick={() => setConfirmDeleteId(null)}>
+      {confirmDeleteStaff && (
+        <div style={styles.overlay} onClick={() => setConfirmDeleteStaff(null)}>
           <div style={styles.confirmCard} onClick={(e) => e.stopPropagation()}>
             <p style={styles.confirmText}>
-              Bạn có chắc muốn xóa tài khoản này? Hành động này không thể hoàn
-              tác.
+              Bạn có chắc muốn xóa tài khoản{" "}
+              <strong>{confirmDeleteStaff.fullName}</strong>? Hành động này
+              không thể hoàn tác.
             </p>
             <div style={{ display: "flex", gap: "10px" }}>
               <button
                 style={styles.btnCancel}
-                onClick={() => setConfirmDeleteId(null)}
+                onClick={() => setConfirmDeleteStaff(null)}
               >
                 Hủy
               </button>
-              <button
-                style={styles.btnDelete}
-                onClick={() => handleDelete(confirmDeleteId)}
-              >
+              <button style={styles.btnDelete} onClick={handleDelete}>
                 Xác nhận xóa
               </button>
             </div>
@@ -620,6 +622,24 @@ const styles: Record<string, React.CSSProperties> = {
     outline: "none",
     boxSizing: "border-box",
     backgroundColor: "#ffffff",
+  },
+  filterRow: {
+    display: "flex",
+    gap: "10px",
+    marginTop: "12px",
+    flexWrap: "wrap",
+  },
+  filterSelect: {
+    flex: "1 1 150px",
+    padding: "10px 12px",
+    borderRadius: "10px",
+    border: "1px solid #e2e8f0",
+    fontSize: "13px",
+    fontWeight: 600,
+    color: "#334155",
+    backgroundColor: "#ffffff",
+    outline: "none",
+    cursor: "pointer",
   },
   loadingText: {
     textAlign: "center",
@@ -691,16 +711,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     cursor: "pointer",
   },
-  btnResetPw: {
-    background: "#fffbeb",
-    color: "#b45309",
-    border: "1px solid #fde68a",
-    borderRadius: "8px",
-    padding: "8px 14px",
-    fontSize: "13px",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
   btnDelete: {
     background: "#fef2f2",
     color: "#ef4444",
@@ -708,6 +718,16 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "8px",
     padding: "8px 14px",
     fontSize: "13px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  btnLockConfirm: {
+    flex: 1,
+    padding: "12px",
+    background: "#ef4444",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "10px",
     fontWeight: 700,
     cursor: "pointer",
   },
