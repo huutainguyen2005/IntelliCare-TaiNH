@@ -154,8 +154,8 @@ const Profile: React.FC = () => {
             }}
           >
             {isPatient
-              ? `🧬 BỆNH NHÂN - ${profile?.fullName || ""}`
-              : "🩺 NHÂN VIÊN Y TẾ"}
+              ? `BỆNH NHÂN - ${profile?.fullName || ""}`
+              : "NHÂN VIÊN Y TẾ"}
           </span>
         </div>
 
