@@ -7,5 +7,6 @@ public record StaffUpdateDTO(
         Role role,               // null = không đổi (không cho đổi thành ADMIN)
         Boolean gender,           // null = không đổi
         Integer managerId,        // null = không đổi
-        String password           // null/rỗng = không đổi mật khẩu
+        String password,          // null/rỗng = không đổi mật khẩu
+        String email               // null = không đổi
 ) {}

@@ -18,10 +18,12 @@ public record StaffCreateDTO(
         String fullName,
 
         @NotNull(message = "Vai trò không được để trống")
-        Role role,
+        Role role, // Controller sẽ chặn nếu gửi ADMIN lên đây
 
         @NotNull(message = "Giới tính không được để trống")
-        Boolean gender,
+        Boolean gender, // true/false - khớp kiểu bit NOT NULL trong DB
 
-        Integer managerId
+        Integer managerId, // Không bắt buộc - id của Admin/Doctor quản lý trực tiếp
+
+        String email // Không bắt buộc - nhưng cần có để dùng chức năng "Quên mật khẩu"
 ) {}

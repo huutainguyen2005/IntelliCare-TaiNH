@@ -57,6 +57,15 @@ public class AuthController {
         // request.role() là Enum Role -> Gán thẳng không cần trim() hay toUpperCase()
         staff.setRole(request.role());
 
+        // gender là cột NOT NULL trong DB - mặc định true (Nam) nếu không truyền,
+        // vì StaffRegisterDTO chưa có field này (endpoint cũ, khuyên dùng
+        // /api/staff (StaffController) cho đầy đủ tính năng hơn thay vì endpoint này).
+        staff.setGender(true);
+
+        if (request.email() != null && !request.email().isBlank()) {
+            staff.setEmail(request.email().trim());
+        }
+
         String encodedPassword = passwordEncoder.encode(request.password().trim());
         staff.setPassword(encodedPassword);
 
@@ -261,6 +270,39 @@ public class AuthController {
         patient.setPassword(passwordEncoder.encode(newPassword));
         patient.setAccountStatus(AccountStatus.ACTIVE); // CHUYỂN SANG ENUM ACTIVE
         patientRepository.save(patient);
+
+        return ResponseEntity.ok(Map.of("message", "Đặt lại mật khẩu thành công!"));
+    }
+
+    // API RESET MẬT KHẨU CHO NHÂN VIÊN (Admin/Doctor/Nurse) - dùng khi quên mật khẩu
+    // Gửi OTP dùng chung /auth/send-otp (endpoint đó không quan tâm chủ sở hữu email)
+    @PostMapping("/staff/reset-password")
+    public ResponseEntity<?> resetStaffPassword(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String newPassword = request.get("password");
+        String otp = request.get("otp");
+
+        if (email == null || newPassword == null || newPassword.trim().length() < 6) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", "Thông tin không hợp lệ hoặc mật khẩu quá ngắn (>= 6 ký tự)!"
+            ));
+        }
+
+        if (otp == null || !otpService.verifyOtp(email.trim(), otp)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", "Mã OTP không chính xác hoặc đã hết hạn!"
+            ));
+        }
+
+        Staff staff = staffRepository.findByEmail(email.trim()).orElse(null);
+        if (staff == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", "Không tìm thấy tài khoản nhân viên nào dùng Email này!"
+            ));
+        }
+
+        staff.setPassword(passwordEncoder.encode(newPassword.trim()));
+        staffRepository.save(staff);
 
         return ResponseEntity.ok(Map.of("message", "Đặt lại mật khẩu thành công!"));
     }

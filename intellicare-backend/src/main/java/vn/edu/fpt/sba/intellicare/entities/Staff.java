@@ -3,6 +3,7 @@ package vn.edu.fpt.sba.intellicare.entities;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 import vn.edu.fpt.sba.intellicare.enums.Role;
 
 import java.time.LocalDateTime;
@@ -27,6 +28,11 @@ public class Staff {
     @Column(name = "full_name", nullable = false, columnDefinition = "NVARCHAR(100)")
     private String fullName;
 
+        // Tùy chọn - Admin điền lúc tạo/sửa tài khoản. Dùng làm kênh nhận OTP
+    // khi nhân viên quên mật khẩu (không có SĐT nên chỉ hỗ trợ Email).
+    @Column(name = "email", length = 100)
+    private String email;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "role", length = 20, columnDefinition = "varchar(20)")
     private Role role;
@@ -43,6 +49,7 @@ public class Staff {
     @OneToMany(mappedBy = "manager")
     private List<Staff> subordinates;
 
-    @Column(name = "created_at", insertable = false, updatable = false)
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 }

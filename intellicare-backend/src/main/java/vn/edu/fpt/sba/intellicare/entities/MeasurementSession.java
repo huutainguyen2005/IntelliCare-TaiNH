@@ -2,6 +2,7 @@ package vn.edu.fpt.sba.intellicare.entities;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 import vn.edu.fpt.sba.intellicare.enums.SessionStatus;
 
 import java.time.LocalDateTime;
@@ -29,6 +30,7 @@ public class MeasurementSession {
     @Column(name = "status", length = 20, columnDefinition = "varchar(20)")
     private SessionStatus status = SessionStatus.Pending;
 
+    @CreationTimestamp
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 }

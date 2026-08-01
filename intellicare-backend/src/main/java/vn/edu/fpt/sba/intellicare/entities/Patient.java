@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 import vn.edu.fpt.sba.intellicare.enums.AccountStatus;
 
 import java.time.LocalDate;
@@ -57,6 +58,7 @@ public class Patient {
     @Column(name = "account_status", length = 50, columnDefinition = "varchar(50)")
     private AccountStatus accountStatus;
 
+    @CreationTimestamp
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

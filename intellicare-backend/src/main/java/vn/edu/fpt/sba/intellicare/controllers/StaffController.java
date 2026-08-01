@@ -74,6 +74,10 @@ public class StaffController {
         staff.setGender(request.gender());
         staff.setPassword(passwordEncoder.encode(request.password().trim()));
 
+        if (request.email() != null && !request.email().isBlank()) {
+            staff.setEmail(request.email().trim());
+        }
+
         if (request.managerId() != null) {
             Staff manager = staffRepository.findById(request.managerId())
                     .orElse(null);
@@ -113,6 +117,10 @@ public class StaffController {
 
         if (request.gender() != null) {
             staff.setGender(request.gender());
+        }
+
+        if (request.email() != null) {
+            staff.setEmail(request.email().isBlank() ? null : request.email().trim());
         }
 
         if (request.managerId() != null) {
@@ -167,7 +175,8 @@ public class StaffController {
                 s.getFullName(),
                 s.getRole(),
                 s.getManager() != null ? s.getManager().getStaffId() : null,
-                s.getGender()
+                s.getGender(),
+                s.getEmail()
         );
     }
 }

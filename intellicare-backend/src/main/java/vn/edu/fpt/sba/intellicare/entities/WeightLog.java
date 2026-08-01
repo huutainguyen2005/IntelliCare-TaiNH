@@ -3,6 +3,7 @@ package vn.edu.fpt.sba.intellicare.entities;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -27,6 +28,7 @@ public class WeightLog {
     @Column(name = "weight_kg", nullable = false)
     private Double weightKg;
 
+    @CreationTimestamp
     @Column(name = "measured_at", insertable = false, updatable = false)
     private LocalDateTime measuredAt;
 }

@@ -8,7 +8,8 @@ public record StaffResponseDTO(
         String fullName,
         Role role,
         Integer managerId, // Chỉ trả về ID của manager để phía Client tự xử lý
-        Boolean gender
+        Boolean gender,
+        String email
 ) {
 
 }
