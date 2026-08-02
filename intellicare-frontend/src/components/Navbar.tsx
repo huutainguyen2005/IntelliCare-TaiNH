@@ -38,10 +38,17 @@ export default function Navbar() {
 
         {/* MENU TRÊN DESKTOP */}
         <div className="nav-links-desktop">
-          {!isAdmin && (
-            <Link to="/profile" style={styles.navItem}>
-              Hồ sơ
-            </Link>
+          {!isAdmin && isAuthenticated && (
+            <>
+              {(user?.role === "DOCTOR" || user?.role === "NURSE") && (
+                <Link to="/dashboard" style={styles.navItem}>
+                  Quản lý Bệnh nhân
+                </Link>
+              )}
+              <Link to="/profile" style={styles.navItem}>
+                Hồ sơ
+              </Link>
+            </>
           )}
           {isAdmin && (
             <>
@@ -81,14 +88,25 @@ export default function Navbar() {
       {/* DROPDOWN MENU MOBILE: Điều khiển hoàn toàn bằng State isMenuOpen */}
       {isMenuOpen && (
         <div style={styles.mobileMenuDropdown}>
-          {!isAdmin && (
-            <Link
-              to="/profile"
-              style={styles.navItemMobile}
-              onClick={closeMenu}
-            >
-              Hồ sơ
-            </Link>
+          {!isAdmin && isAuthenticated && (
+            <>
+              {(user?.role === "DOCTOR" || user?.role === "NURSE") && (
+                <Link
+                  to="/dashboard"
+                  style={styles.navItemMobile}
+                  onClick={closeMenu}
+                >
+                  Quản lý Bệnh nhân
+                </Link>
+              )}
+              <Link
+                to="/profile"
+                style={styles.navItemMobile}
+                onClick={closeMenu}
+              >
+                Hồ sơ
+              </Link>
+            </>
           )}
           {isAdmin && (
             <>
