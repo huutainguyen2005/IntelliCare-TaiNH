@@ -147,6 +147,8 @@ public class PatientServiceImpl implements IPatientService {
                 patient.getFaceImageUrl(),
                 patient.getAccountStatus() != null ? patient.getAccountStatus().name() : null,
                 patient.getIsActive(),
+                patient.getCreatedAt(),
+                patient.getActivatedAt(),
                 logDTOs
         );
     }

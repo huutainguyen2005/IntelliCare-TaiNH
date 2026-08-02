@@ -22,6 +22,8 @@ interface PatientItem {
   faceImageUrl: string | null;
   accountStatus: "PENDING_PASSWORD" | "ACTIVE";
   isActive: boolean;
+  createdAt: string | null;
+  activatedAt: string | null;
   weightLog: WeightLogItem[];
 }
 
@@ -35,6 +37,15 @@ interface PatientFormState {
 }
 
 export default function PatientManagement() {
+  // Format DD/MM/YYYY (luôn có số 0 phía trước)
+  const formatDate = (dateInput: string | null): string => {
+    if (!dateInput) return "Chưa cập nhật";
+    const d = new Date(dateInput);
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${day}/${month}/${d.getFullYear()}`;
+  };
+
   const [patientList, setPatientList] = useState<PatientItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -238,11 +249,12 @@ export default function PatientManagement() {
         ) : (
           <div style={{ marginTop: "20px" }}>
             {pagedList.map((p) => (
-              <div key={p.patientId} style={styles.patientCard}>
-                <div
-                  style={{ cursor: "pointer" }}
-                  onClick={() => setDetailPatient(p)}
-                >
+              <div
+                key={p.patientId}
+                style={{ ...styles.patientCard, cursor: "pointer" }}
+                onClick={() => setDetailPatient(p)}
+              >
+                <div>
                   <div style={styles.patientName}>
                     {p.fullName}
                     {!p.isActive && (
@@ -254,7 +266,10 @@ export default function PatientManagement() {
                     {statusLabel(p.accountStatus)}
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <div
+                  style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <button
                     style={p.isActive ? styles.btnLock : styles.btnUnlock}
                     onClick={() => setConfirmTogglePatient(p)}
@@ -387,7 +402,7 @@ export default function PatientManagement() {
         </div>
       )}
 
-      {/* MODAL CHI TIẾT (xem lịch sử đo nhanh) */}
+      {/* MODAL CHI TIẾT */}
       {detailPatient && (
         <div style={styles.overlay} onClick={() => setDetailPatient(null)}>
           <div style={styles.formCard} onClick={(e) => e.stopPropagation()}>
@@ -410,28 +425,12 @@ export default function PatientManagement() {
             <p style={styles.detailRow}>
               <b>Trạng thái:</b> {statusLabel(detailPatient.accountStatus)}
             </p>
-
-            <h4 style={{ marginTop: "16px", marginBottom: "8px" }}>
-              Lịch sử đo gần đây
-            </h4>
-            {detailPatient.weightLog.length === 0 ? (
-              <p style={styles.detailRow}>Chưa có dữ liệu đo.</p>
-            ) : (
-              detailPatient.weightLog
-                .slice()
-                .sort(
-                  (a, b) =>
-                    new Date(b.measuredAt).getTime() -
-                    new Date(a.measuredAt).getTime(),
-                )
-                .slice(0, 5)
-                .map((log) => (
-                  <p key={log.logId} style={styles.detailRow}>
-                    {new Date(log.measuredAt).toLocaleDateString("vi-VN")} —{" "}
-                    <b>{log.weightKg} kg</b>
-                  </p>
-                ))
-            )}
+            <p style={styles.detailRow}>
+              <b>Ngày tạo hồ sơ:</b> {formatDate(detailPatient.createdAt)}
+            </p>
+            <p style={styles.detailRow}>
+              <b>Ngày kích hoạt:</b> {formatDate(detailPatient.activatedAt)}
+            </p>
 
             <button
               style={{ ...styles.btnCancel, marginTop: "16px" }}

@@ -25,6 +25,21 @@ interface PatientDetailData {
 }
 
 export default function StaffDashboard() {
+  // Format DD/MM/YYYY (luôn có số 0 phía trước)
+  const formatDate = (dateInput: string | Date): string => {
+    const d = new Date(dateInput);
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${day}/${month}/${d.getFullYear()}`;
+  };
+
+  const formatDateTime = (dateInput: string | Date): string => {
+    const d = new Date(dateInput);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${formatDate(d)} ${hh}:${mm}`;
+  };
+
   const [allPatients, setAllPatients] = useState<PatientListItem[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [search, setSearch] = useState("");
@@ -162,7 +177,7 @@ export default function StaffDashboard() {
       if (logDate >= targetDate) continue;
 
       const weightDiff = Math.abs(targetLog.weightKg - log.weightKg);
-      const formattedLogDate = logDate.toLocaleDateString("vi-VN");
+      const formattedLogDate = formatDate(logDate);
 
       if (logDate >= oneWeekAgo && weightDiff > 2) {
         return {
@@ -277,7 +292,11 @@ export default function StaffDashboard() {
         ) : (
           <div style={{ marginTop: "24px" }}>
             {pagedPatients.map((p) => (
-              <div key={p.patientId} style={styles.patientCard}>
+              <div
+                key={p.patientId}
+                style={{ ...styles.patientCard, cursor: "pointer" }}
+                onClick={() => handleOpenModal(p.patientId)}
+              >
                 <div>
                   <div style={styles.patientName}>{p.fullName}</div>
                   <div style={styles.patientPhone}>
@@ -289,7 +308,10 @@ export default function StaffDashboard() {
                   </div>
                 </div>
                 <button
-                  onClick={() => handleOpenModal(p.patientId)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenModal(p.patientId);
+                  }}
                   style={styles.btnViewProfile}
                 >
                   XEM HỒ SƠ
@@ -480,9 +502,7 @@ export default function StaffDashboard() {
                                       fontWeight: 600,
                                     }}
                                   >
-                                    {new Date(log.measuredAt).toLocaleString(
-                                      "vi-VN",
-                                    )}
+                                    {formatDateTime(log.measuredAt)}
                                   </span>
                                   {logRisk.isRisk && (
                                     <span style={styles.dangerTag}>

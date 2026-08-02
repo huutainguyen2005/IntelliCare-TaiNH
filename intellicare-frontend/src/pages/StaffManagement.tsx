@@ -11,6 +11,7 @@ interface StaffItem {
   gender: boolean; // true = Nam, false = Nữ (khớp cột bit trong DB)
   email: string | null;
   isActive: boolean;
+  createdAt: string | null;
 }
 
 interface StaffFormState {
@@ -36,6 +37,17 @@ const emptyForm: StaffFormState = {
 };
 
 export default function StaffManagement() {
+  // Format DD/MM/YYYY (luôn có số 0 phía trước)
+  const formatDate = (dateInput: string | null): string => {
+    if (!dateInput) return "Chưa cập nhật";
+    const d = new Date(dateInput);
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${day}/${month}/${d.getFullYear()}`;
+  };
+
+  const [detailStaff, setDetailStaff] = useState<StaffItem | null>(null);
+
   const [staffList, setStaffList] = useState<StaffItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -322,7 +334,11 @@ export default function StaffManagement() {
         ) : (
           <div style={{ marginTop: "20px" }}>
             {pagedList.map((s) => (
-              <div key={s.staffId} style={styles.staffCard}>
+              <div
+                key={s.staffId}
+                style={{ ...styles.staffCard, cursor: "pointer" }}
+                onClick={() => setDetailStaff(s)}
+              >
                 <div>
                   <div style={styles.staffName}>
                     {s.fullName}
@@ -336,7 +352,10 @@ export default function StaffManagement() {
                     {s.email ? ` · ${s.email}` : ""}
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <div
+                  style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <button
                     style={s.isActive ? styles.btnLock : styles.btnUnlock}
                     onClick={() => setConfirmToggleStaff(s)}
@@ -506,6 +525,44 @@ export default function StaffManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CHI TIẾT */}
+      {detailStaff && (
+        <div style={styles.overlay} onClick={() => setDetailStaff(null)}>
+          <div style={styles.formCard} onClick={(e) => e.stopPropagation()}>
+            <h3 style={styles.formTitle}>{detailStaff.fullName}</h3>
+            <p style={styles.detailRow}>
+              <b>Tên đăng nhập:</b> {detailStaff.username}
+            </p>
+            <p style={styles.detailRow}>
+              <b>Vai trò:</b> {roleLabel(detailStaff.role)}
+            </p>
+            <p style={styles.detailRow}>
+              <b>Giới tính:</b> {detailStaff.gender ? "Nam" : "Nữ"}
+            </p>
+            <p style={styles.detailRow}>
+              <b>Email:</b> {detailStaff.email || "Chưa cập nhật"}
+            </p>
+            <p style={styles.detailRow}>
+              <b>Mã người quản lý:</b> {detailStaff.managerId ?? "Không có"}
+            </p>
+            <p style={styles.detailRow}>
+              <b>Trạng thái:</b>{" "}
+              {detailStaff.isActive ? "Đang hoạt động" : "Đã khóa"}
+            </p>
+            <p style={styles.detailRow}>
+              <b>Ngày tạo tài khoản:</b> {formatDate(detailStaff.createdAt)}
+            </p>
+
+            <button
+              style={{ ...styles.btnCancel, marginTop: "16px" }}
+              onClick={() => setDetailStaff(null)}
+            >
+              Đóng
+            </button>
           </div>
         </div>
       )}
@@ -791,6 +848,11 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#0f172a",
     marginTop: 0,
     marginBottom: "20px",
+  },
+  detailRow: {
+    fontSize: "14px",
+    color: "#334155",
+    margin: "6px 0",
   },
   label: {
     display: "block",

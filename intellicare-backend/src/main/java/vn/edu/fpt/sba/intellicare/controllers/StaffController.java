@@ -203,7 +203,8 @@ public class StaffController {
                 s.getManager() != null ? s.getManager().getStaffId() : null,
                 s.getGender(),
                 s.getEmail(),
-                s.getIsActive()
+                s.getIsActive(),
+                s.getCreatedAt()
         );
     }
 }
