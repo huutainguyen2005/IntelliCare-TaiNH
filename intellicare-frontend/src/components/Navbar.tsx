@@ -44,9 +44,14 @@ export default function Navbar() {
             </Link>
           )}
           {isAdmin && (
-            <Link to="/staff-management" style={styles.navItem}>
-              Quản lý Bác sĩ/Y tá
-            </Link>
+            <>
+              <Link to="/staff-management" style={styles.navItem}>
+                Quản lý Bác sĩ/Y tá
+              </Link>
+              <Link to="/patient-management" style={styles.navItem}>
+                Quản lý Bệnh nhân
+              </Link>
+            </>
           )}
           {isAuthenticated ? (
             <button onClick={handleLogout} style={styles.btnLogout}>
@@ -86,13 +91,22 @@ export default function Navbar() {
             </Link>
           )}
           {isAdmin && (
-            <Link
-              to="/staff-management"
-              style={styles.navItemMobile}
-              onClick={closeMenu}
-            >
-              Quản lý Bác sĩ/Y tá
-            </Link>
+            <>
+              <Link
+                to="/staff-management"
+                style={styles.navItemMobile}
+                onClick={closeMenu}
+              >
+                Quản lý Bác sĩ/Y tá
+              </Link>
+              <Link
+                to="/patient-management"
+                style={styles.navItemMobile}
+                onClick={closeMenu}
+              >
+                Quản lý Bệnh nhân
+              </Link>
+            </>
           )}
           {isAuthenticated ? (
             <button onClick={handleLogout} style={styles.btnLogoutMobile}>

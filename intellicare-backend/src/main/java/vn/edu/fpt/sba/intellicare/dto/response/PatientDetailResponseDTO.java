@@ -6,11 +6,16 @@ import java.util.List;
 public record PatientDetailResponseDTO (Integer patientId,
                                         String patientCode,
                                         String phoneNumber,
+                                        String email,
+                                        String idCard,
+                                        String address,
                                         String fullName,
                                         LocalDate dob,
                                         String gender,
                                         Double heightCm,
-                                        String faceImageUrl ,
+                                        String faceImageUrl,
+                                        String accountStatus,
+                                        Boolean isActive,
                                         List<WeightLogResponseDTO> weightLog){
 
 }

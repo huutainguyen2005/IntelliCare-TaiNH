@@ -7,6 +7,7 @@ import Profile from "./pages/Profile";
 import Navbar from "./components/Navbar";
 import StaffDashboard from "./pages/StaffDashboard";
 import StaffManagement from "./pages/StaffManagement";
+import PatientManagement from "./pages/PatientManagement";
 import PatientDetail from "./pages/PatientDetail";
 import PatientActivation from "./pages/PatientActivation";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -106,6 +107,18 @@ function WebApp() {
           element={
             isAuthenticated && user?.role === "ADMIN" ? (
               <StaffManagement />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        {/* CHỈ ADMIN mới được vào trang quản lý Bệnh nhân */}
+        <Route
+          path="/patient-management"
+          element={
+            isAuthenticated && user?.role === "ADMIN" ? (
+              <PatientManagement />
             ) : (
               <Navigate to="/login" replace />
             )

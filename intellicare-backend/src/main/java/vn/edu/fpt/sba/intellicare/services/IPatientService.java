@@ -18,7 +18,8 @@ public interface IPatientService {
 
     // Lưu và Cập nhật trả về DTO hoặc Entity tùy bạn, ở đây tôi để Entity
     Patient save(PatientRegisterDTO patientInput);
-    Patient update(Integer id, Patient patientInput);
+    PatientDetailResponseDTO update(Integer id, vn.edu.fpt.sba.intellicare.dto.request.PatientUpdateDTO patientInput);
+    PatientDetailResponseDTO toggleActive(Integer id);
 
     void delete(Integer id);
 

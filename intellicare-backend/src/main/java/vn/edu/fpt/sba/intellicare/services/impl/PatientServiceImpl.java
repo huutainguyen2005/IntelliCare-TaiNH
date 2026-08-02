@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PatientServiceImpl implements IPatientService {
-    
+
     private final PatientRepository patientRepository;
 
     @Override
@@ -65,13 +65,44 @@ public class PatientServiceImpl implements IPatientService {
     }
 
     @Override
-    public Patient update(Integer id, Patient patientInput) {
-        return null;
+    public PatientDetailResponseDTO update(Integer id, vn.edu.fpt.sba.intellicare.dto.request.PatientUpdateDTO request) {
+        Patient patient = patientRepository.findById(id).orElse(null);
+        if (patient == null) return null;
+
+        if (request.fullName() != null && !request.fullName().isBlank()) {
+            patient.setFullName(request.fullName().trim());
+        }
+        if (request.gender() != null) {
+            patient.setGender(request.gender());
+        }
+        if (request.address() != null) {
+            patient.setAddress(request.address().trim());
+        }
+        if (request.email() != null) {
+            patient.setEmail(request.email().isBlank() ? null : request.email().trim());
+        }
+        if (request.phoneNumber() != null && !request.phoneNumber().isBlank()) {
+            patient.setPhoneNumber(request.phoneNumber().trim());
+        }
+
+        Patient saved = patientRepository.save(patient);
+        return toDetailDTO(saved);
+    }
+
+    @Override
+    public PatientDetailResponseDTO toggleActive(Integer id) {
+        Patient patient = patientRepository.findById(id).orElse(null);
+        if (patient == null) return null;
+
+        boolean newStatus = !Boolean.TRUE.equals(patient.getIsActive());
+        patient.setIsActive(newStatus);
+        Patient saved = patientRepository.save(patient);
+        return toDetailDTO(saved);
     }
 
     @Override
     public void delete(Integer id) {
-
+        patientRepository.deleteById(id);
     }
 
     @Override
@@ -106,11 +137,16 @@ public class PatientServiceImpl implements IPatientService {
                 patient.getPatientId(),
                 patient.getPatientCode(),
                 patient.getPhoneNumber(),
+                patient.getEmail(),
+                patient.getIdCard(),
+                patient.getAddress(),
                 patient.getFullName(),
                 patient.getDob(),
                 patient.getGender(),
                 null, // Thay bằng giá trị height thật nếu có
                 patient.getFaceImageUrl(),
+                patient.getAccountStatus() != null ? patient.getAccountStatus().name() : null,
+                patient.getIsActive(),
                 logDTOs
         );
     }

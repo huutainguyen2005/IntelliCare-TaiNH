@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from "react";
 import axiosClient from "../api/axiosClient";
 
-interface PatientSummary {
-  patientId: number;
-  fullName: string;
-  phoneNumber: string;
-}
-
 interface WeightLog {
   logId: number;
   measuredAt: string;
   weightKg: number;
+}
+
+interface PatientListItem {
+  patientId: number;
+  fullName: string;
+  phoneNumber: string;
+  gender: string | null;
+  weightLog: WeightLog[];
 }
 
 interface PatientDetailData {
@@ -23,8 +25,18 @@ interface PatientDetailData {
 }
 
 export default function StaffDashboard() {
-  const [patients, setPatients] = useState<PatientSummary[]>([]);
+  const [allPatients, setAllPatients] = useState<PatientListItem[]>([]);
+  const [isLoadingList, setIsLoadingList] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 5;
+
+  // Bộ lọc
+  const [genderFilter, setGenderFilter] = useState<"ALL" | "Nam" | "Nữ">("ALL");
+  const [minWeight, setMinWeight] = useState("");
+  const [maxWeight, setMaxWeight] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   // State điều khiển trạng thái Popup & Hiệu ứng tương tác UI
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,33 +49,72 @@ export default function StaffDashboard() {
   const [isLogsBtnHovered, setIsLogsBtnHovered] = useState(false);
   const [isCloseHovered, setIsCloseHovered] = useState(false);
 
-  // 1. TỐI ƯU TÀI NGUYÊN TÌM KIẾM
+  // TẢI DANH SÁCH BỆNH NHÂN ĐÃ ĐO (có ít nhất 1 lần cân) MỘT LẦN LÚC VÀO TRANG
   useEffect(() => {
-    if (!search.trim()) {
-      setPatients([]);
-      return;
-    }
-
-    let isActive = true;
-    const fetchPatients = async () => {
+    const fetchAllPatients = async () => {
+      setIsLoadingList(true);
       try {
-        const res = await axiosClient.get(
-          `/api/patients/search?keyword=${search}`,
+        const res = await axiosClient.get("/api/patients", {
+          params: { page: 0, size: 1000 },
+        });
+        const measured = (res.data.content as PatientListItem[]).filter(
+          (p) => p.weightLog && p.weightLog.length > 0,
         );
-        if (isActive) setPatients(res.data);
+        setAllPatients(measured);
       } catch (error) {
-        console.error("Lỗi hệ thống khi tìm kiếm bệnh nhân:", error);
+        console.error("Lỗi khi tải danh sách bệnh nhân:", error);
+      } finally {
+        setIsLoadingList(false);
       }
     };
+    fetchAllPatients();
+  }, []);
 
-    const timeoutId = setTimeout(() => {
-      fetchPatients();
-    }, 500);
-    return () => {
-      isActive = false;
-      clearTimeout(timeoutId);
-    };
-  }, [search]);
+  // Tính cân nặng lần đo GẦN NHẤT của 1 bệnh nhân (dùng để lọc theo range kg)
+  const getLatestWeight = (logs: WeightLog[]): number | null => {
+    if (!logs || logs.length === 0) return null;
+    const sorted = [...logs].sort(
+      (a, b) =>
+        new Date(b.measuredAt).getTime() - new Date(a.measuredAt).getTime(),
+    );
+    return sorted[0].weightKg;
+  };
+
+  const filteredPatients = allPatients.filter((p) => {
+    const kw = search.trim().toLowerCase();
+    const matchSearch =
+      !kw ||
+      p.fullName.toLowerCase().includes(kw) ||
+      p.phoneNumber.includes(search.trim());
+
+    const matchGender = genderFilter === "ALL" || p.gender === genderFilter;
+
+    const latestWeight = getLatestWeight(p.weightLog);
+    const min = minWeight ? Number(minWeight) : null;
+    const max = maxWeight ? Number(maxWeight) : null;
+    const matchWeight =
+      (min === null && max === null) ||
+      (latestWeight !== null &&
+        (min === null || latestWeight >= min) &&
+        (max === null || latestWeight <= max));
+
+    const matchDate =
+      (!dateFrom && !dateTo) ||
+      p.weightLog.some((log) => {
+        const logDate = log.measuredAt.slice(0, 10); // "YYYY-MM-DD"
+        return (
+          (!dateFrom || logDate >= dateFrom) && (!dateTo || logDate <= dateTo)
+        );
+      });
+
+    return matchSearch && matchGender && matchWeight && matchDate;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredPatients.length / PER_PAGE));
+  const pagedPatients = filteredPatients.slice(
+    (page - 1) * PER_PAGE,
+    page * PER_PAGE,
+  );
 
   // 2. KHÓA TRẠNG THÁI CUỘN MÀN HÌNH CHÍNH PHÍA SAU KHI MỞ MODAL
   useEffect(() => {
@@ -155,44 +206,132 @@ export default function StaffDashboard() {
             ...styles.inputField,
             ...(isInputFocused ? styles.inputFieldFocus : {}),
           }}
-          placeholder="🔍 Nhập chính xác tên bệnh nhân hoặc SĐT để tra cứu..."
+          placeholder="🔍 Tìm theo tên hoặc số điện thoại..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           onFocus={() => setIsInputFocused(true)}
           onBlur={() => setIsInputFocused(false)}
         />
 
-        {!search.trim() && (
-          <div style={styles.emptyStateContainer}>
-            <p style={styles.emptyStateText}>
-              🧬 Hệ thống phân tích sinh trắc học đã sẵn sàng. Vui lòng nhập từ
-              khóa.
-            </p>
+        <div style={styles.filterRow}>
+          <select
+            style={styles.filterSelect}
+            value={genderFilter}
+            onChange={(e) => {
+              setGenderFilter(e.target.value as typeof genderFilter);
+              setPage(1);
+            }}
+          >
+            <option value="ALL">Tất cả giới tính</option>
+            <option value="Nam">Nam</option>
+            <option value="Nữ">Nữ</option>
+          </select>
+
+          <input
+            style={styles.filterNumberInput}
+            type="number"
+            placeholder="Từ (kg)"
+            value={minWeight}
+            onChange={(e) => {
+              setMinWeight(e.target.value);
+              setPage(1);
+            }}
+          />
+          <input
+            style={styles.filterNumberInput}
+            type="number"
+            placeholder="Đến (kg)"
+            value={maxWeight}
+            onChange={(e) => {
+              setMaxWeight(e.target.value);
+              setPage(1);
+            }}
+          />
+
+          <input
+            style={styles.filterDateInput}
+            type="date"
+            value={dateFrom}
+            onChange={(e) => {
+              setDateFrom(e.target.value);
+              setPage(1);
+            }}
+          />
+          <span style={{ color: "#94a3b8", fontSize: "13px" }}>→</span>
+          <input
+            style={styles.filterDateInput}
+            type="date"
+            value={dateTo}
+            onChange={(e) => {
+              setDateTo(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+
+        {isLoadingList ? (
+          <p style={styles.errorResultText}>Đang tải danh sách...</p>
+        ) : (
+          <div style={{ marginTop: "24px" }}>
+            {pagedPatients.map((p) => (
+              <div key={p.patientId} style={styles.patientCard}>
+                <div>
+                  <div style={styles.patientName}>{p.fullName}</div>
+                  <div style={styles.patientPhone}>
+                    Liên hệ: {p.phoneNumber}
+                    {p.gender ? ` · ${p.gender}` : ""}
+                    {getLatestWeight(p.weightLog) !== null
+                      ? ` · ${getLatestWeight(p.weightLog)} kg (gần nhất)`
+                      : ""}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleOpenModal(p.patientId)}
+                  style={styles.btnViewProfile}
+                >
+                  XEM HỒ SƠ
+                </button>
+              </div>
+            ))}
+
+            {filteredPatients.length === 0 && (
+              <p style={styles.errorResultText}>
+                📭 Không tìm thấy hồ sơ bệnh nhân phù hợp.
+              </p>
+            )}
+
+            {filteredPatients.length > PER_PAGE && (
+              <div style={styles.paginationRow}>
+                <button
+                  style={{
+                    ...styles.pageBtn,
+                    ...(page === 1 ? styles.pageBtnDisabled : {}),
+                  }}
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  ← Trước
+                </button>
+                <span style={styles.pageIndicator}>
+                  Trang {page}/{totalPages}
+                </span>
+                <button
+                  style={{
+                    ...styles.pageBtn,
+                    ...(page >= totalPages ? styles.pageBtnDisabled : {}),
+                  }}
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Sau →
+                </button>
+              </div>
+            )}
           </div>
         )}
-
-        <div style={{ marginTop: "24px" }}>
-          {patients.map((p) => (
-            <div key={p.patientId} style={styles.patientCard}>
-              <div>
-                <div style={styles.patientName}>{p.fullName}</div>
-                <div style={styles.patientPhone}>Liên hệ: {p.phoneNumber}</div>
-              </div>
-              <button
-                onClick={() => handleOpenModal(p.patientId)}
-                style={styles.btnViewProfile}
-              >
-                XEM HỒ SƠ
-              </button>
-            </div>
-          ))}
-
-          {search.trim() !== "" && patients.length === 0 && (
-            <p style={styles.errorResultText}>
-              📭 Không tìm thấy hồ sơ bệnh nhân phù hợp trên hệ thống.
-            </p>
-          )}
-        </div>
       </div>
 
       {/* THÀNH PHẦN 2: MODAL LỚP PHỦ (ĐÃ ĐƯỢC ĐƯA RA NGOÀI ĐỂ FIXED TOÀN VIEWPORT CHUẨN 100%) */}
@@ -455,6 +594,72 @@ const styles: { [key: string]: React.CSSProperties } = {
   inputFieldFocus: {
     borderColor: "#0d9488",
     boxShadow: "0 0 0 4px rgba(13, 148, 136, 0.15)",
+  },
+  filterRow: {
+    display: "flex",
+    gap: "10px",
+    marginTop: "14px",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  filterSelect: {
+    flex: "1 1 150px",
+    padding: "10px 12px",
+    borderRadius: "10px",
+    border: "1px solid #e2e8f0",
+    fontSize: "13px",
+    fontWeight: 600,
+    color: "#334155",
+    backgroundColor: "#ffffff",
+    outline: "none",
+    cursor: "pointer",
+  },
+  filterNumberInput: {
+    flex: "1 1 100px",
+    padding: "10px 12px",
+    borderRadius: "10px",
+    border: "1px solid #e2e8f0",
+    fontSize: "13px",
+    outline: "none",
+    boxSizing: "border-box",
+  },
+  filterDateInput: {
+    flex: "1 1 140px",
+    padding: "9px 10px",
+    borderRadius: "10px",
+    border: "1px solid #e2e8f0",
+    fontSize: "13px",
+    outline: "none",
+    boxSizing: "border-box",
+  },
+  paginationRow: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "16px",
+    marginTop: "20px",
+    paddingTop: "20px",
+    borderTop: "1px solid #e2e8f0",
+  },
+  pageBtn: {
+    padding: "8px 16px",
+    borderRadius: "8px",
+    border: "1px solid #0d9488",
+    background: "#ffffff",
+    color: "#0d9488",
+    fontSize: "13px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  pageBtnDisabled: {
+    borderColor: "#e2e8f0",
+    color: "#cbd5e1",
+    cursor: "not-allowed",
+  },
+  pageIndicator: {
+    fontSize: "13px",
+    fontWeight: 700,
+    color: "#475569",
   },
   emptyStateContainer: {
     marginTop: "40px",
