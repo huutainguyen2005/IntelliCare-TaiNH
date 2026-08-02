@@ -8,6 +8,7 @@ import Navbar from "./components/Navbar";
 import StaffDashboard from "./pages/StaffDashboard";
 import StaffManagement from "./pages/StaffManagement";
 import PatientManagement from "./pages/PatientManagement";
+import AdminDashboard from "./pages/AdminDashboard";
 import PatientDetail from "./pages/PatientDetail";
 import PatientActivation from "./pages/PatientActivation";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -72,7 +73,7 @@ function WebApp() {
             !isAuthenticated ? (
               <Navigate to="/login" replace />
             ) : user?.role === "ADMIN" ? (
-              <Navigate to="/staff-management" replace />
+              <Navigate to="/admin-dashboard" replace />
             ) : (
               <Profile />
             )
@@ -119,6 +120,18 @@ function WebApp() {
           element={
             isAuthenticated && user?.role === "ADMIN" ? (
               <PatientManagement />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        {/* CHỈ ADMIN mới được vào trang Tổng quan hệ thống */}
+        <Route
+          path="/admin-dashboard"
+          element={
+            isAuthenticated && user?.role === "ADMIN" ? (
+              <AdminDashboard />
             ) : (
               <Navigate to="/login" replace />
             )

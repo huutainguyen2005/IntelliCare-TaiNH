@@ -52,6 +52,9 @@ export default function Navbar() {
           )}
           {isAdmin && (
             <>
+              <Link to="/admin-dashboard" style={styles.navItem}>
+                Tổng quan
+              </Link>
               <Link to="/staff-management" style={styles.navItem}>
                 Quản lý Bác sĩ/Y tá
               </Link>
@@ -110,6 +113,13 @@ export default function Navbar() {
           )}
           {isAdmin && (
             <>
+              <Link
+                to="/admin-dashboard"
+                style={styles.navItemMobile}
+                onClick={closeMenu}
+              >
+                Tổng quan
+              </Link>
               <Link
                 to="/staff-management"
                 style={styles.navItemMobile}

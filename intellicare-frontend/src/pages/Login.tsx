@@ -23,7 +23,7 @@ const Login: React.FC = () => {
   if (isAuthenticated) {
     return (
       <Navigate
-        to={user?.role === "ADMIN" ? "/staff-management" : "/profile"}
+        to={user?.role === "ADMIN" ? "/admin-dashboard" : "/profile"}
         replace
       />
     );
@@ -43,7 +43,7 @@ const Login: React.FC = () => {
       });
       const { token, role, fullName } = response.data;
       login(token, role, fullName, rememberMe);
-      navigate(role === "ADMIN" ? "/staff-management" : "/profile");
+      navigate(role === "ADMIN" ? "/admin-dashboard" : "/profile");
     } catch (error: any) {
       const errorCode = error.response?.data?.errorCode;
       const backendMsg = error.response?.data?.message;
