@@ -99,7 +99,7 @@ void loop()
       lastUiUpdateTime = millis();
     }
 
-    if (current_weight > 0.2 && !isSent)
+    if (current_weight > 0.02 && !isSent)
     {
       if (!isVoicePlayed)
       {
@@ -133,7 +133,7 @@ void loop()
       }
     }
 
-    if (current_weight < 0.1)
+    if (current_weight < 0.01)
     {
       if (millis() - emptyStartTime > 1000)
       {

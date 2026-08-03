@@ -25,8 +25,8 @@
 // Ngưỡng lọc nhiễu chống rung (kg)
 #define DEADBAND 0.005
 
-// Thời gian chờ tĩnh (ms) - Đứng im 1.5s mới chốt số
-#define STABILIZE_DURATION 1500
+// Thời gian chờ tĩnh (ms) - Đứng im 3s mới chốt số
+#define STABILIZE_DURATION 3000
 
 // ================= CẤU HÌNH MẠNG & API =================
 
@@ -34,14 +34,14 @@
 // 1: Wi-Fi không mật khẩu (Open)
 // 2: Wi-Fi cá nhân/gia đình bình thường (WPA2 Personal)
 // 3: Wi-Fi doanh nghiệp/Trường học (WPA2 Enterprise)
-#define WIFI_AUTH_TYPE 2
+// #define WIFI_AUTH_TYPE 2
 
-#define WIFI_SSID "TestESP32"          // Tên Wi-Fi
-#define WIFI_PASSWORD "12345678"       // Mật khẩu (Dùng cho Loại 2 và 3)
-#define WIFI_USERNAME "KienNTCE190036" // ID Sinh viên (Chỉ dùng cho Loại 3)
+// #define WIFI_SSID "TestESP32"
+// #define WIFI_PASSWORD "12345678"
+// #define WIFI_USERNAME "KienNTCE190036"
 
-#define SERVER_URL "https://intellicare-tainh.onrender.com/api/measurements/submit"
+// #define SERVER_URL "http://192.168.137.1:8080/api/measurements/submit"
 #define DEVICE_ID "SCALE_001"
 #define API_RETRY_DELAY 3000 // Chờ 3s nếu API lỗi
-
+#define SERVER_URL "https://intellicare-tainh.onrender.com/api/measurements/submit"
 #endif

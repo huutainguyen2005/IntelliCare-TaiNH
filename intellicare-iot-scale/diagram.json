@@ -1,47 +1,73 @@
 {
   "version": 1,
-  "author": "Wokwi",
+  "author": "SCALE-INTELLICARE",
   "editor": "wokwi",
   "parts": [
     { "type": "board-esp32-s3-devkitc-1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
     {
-      "type": "wokwi-lcd2004",
+      "type": "wokwi-lcd1602",
       "id": "lcd",
-      "top": -120,
+      "top": -150,
       "left": 180,
       "attrs": { "pins": "i2c", "i2cAddress": "0x27" }
     },
     {
       "type": "wokwi-hx711",
       "id": "hx711",
-      "top": 120,
+      "top": 180,
       "left": 180,
       "attrs": {}
     },
     {
       "type": "wokwi-pushbutton",
       "id": "btn_tare",
-      "top": -15,
-      "left": -120,
+      "top": -20,
+      "left": -180,
       "attrs": { "color": "red" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text_btn",
+      "top": 40,
+      "left": -180,
+      "attrs": { "text": "TARE Button (GPIO 6)" }
+    },
+    {
+      "type": "wokwi-logic-analyzer",
+      "id": "logic",
+      "top": 250,
+      "left": -200,
+      "attrs": { "bufferSize": "8388608", "sampleRate": "1000000" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text_i2s",
+      "top": 220,
+      "left": -200,
+      "attrs": { "text": "Tin hieu Audio I2S (D0=LRC, D1=BCLK, D2=DOUT)" }
     }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
     [ "esp:RX", "$serialMonitor:TX", "", [] ],
-    
+
     [ "lcd:GND", "esp:GND.1", "black", [ "v0" ] ],
     [ "lcd:VCC", "esp:5V", "red", [ "v0" ] ],
     [ "lcd:SDA", "esp:8", "purple", [ "v0" ] ],
     [ "lcd:SCL", "esp:9", "orange", [ "v0" ] ],
-    
+
     [ "hx711:GND", "esp:GND.2", "black", [ "v0" ] ],
     [ "hx711:VCC", "esp:3V3", "red", [ "v0" ] ],
     [ "hx711:DT", "esp:4", "green", [ "v0" ] ],
     [ "hx711:SCK", "esp:5", "yellow", [ "v0" ] ],
 
-    [ "btn_tare:1.l", "esp:GND.2", "black", [ "v0" ] ],
-    [ "btn_tare:2.l", "esp:6", "blue", [ "v0" ] ]
+    [ "btn_tare:1.l", "esp:GND.3", "black", [ "v0" ] ],
+    [ "btn_tare:2.l", "esp:6", "blue", [ "v0" ] ],
+
+    [ "logic:GND", "esp:GND.4", "black", [ "v0" ] ],
+    [ "logic:D0", "esp:15", "cyan", [ "v0", "h-20" ] ],
+    [ "logic:D1", "esp:16", "magenta", [ "v0", "h-40" ] ],
+    [ "logic:D2", "esp:17", "white", [ "v0", "h-60" ] ]
   ],
   "dependencies": {}
 }
