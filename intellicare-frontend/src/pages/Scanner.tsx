@@ -311,7 +311,6 @@ export default function Scanner() {
 
         {status === "READY" && (
           <div style={styles.readyCard}>
-            <div style={styles.readyIcon}>🧍</div>
             <h3
               style={{
                 color: "#0d9488",
@@ -319,7 +318,7 @@ export default function Scanner() {
                 margin: "10px 0 5px 0",
               }}
             >
-              Đã xác nhận bệnh nhân
+              Đã xác nhận
             </h3>
             <p
               style={{
