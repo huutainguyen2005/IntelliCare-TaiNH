@@ -342,7 +342,6 @@ export default function Scanner() {
 
         {status === "READY" && (
           <div style={styles.readyCard}>
-            <div style={styles.readyIcon}>🧍</div>
             <h3
               style={{
                 color: "#0d9488",
