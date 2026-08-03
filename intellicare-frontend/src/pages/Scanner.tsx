@@ -3,7 +3,7 @@ import { Html5Qrcode } from "html5-qrcode";
 import axiosClient from "../api/axiosClient";
 import Modal from "../components/Modal";
 import { useCustomAuth } from "../context/AuthContext";
-import { speakWeight } from "../utils/weightAudio";
+import { speakWeight, formatWeight } from "../utils/weightAudio";
 
 interface CameraOption {
   id: string;
@@ -203,7 +203,7 @@ export default function Scanner() {
           );
           if (response.data.status === "Completed") {
             setStatus("COMPLETED");
-            setWeightResult(response.data.weightKg + " kg");
+            setWeightResult(formatWeight(response.data.weightKg) + " kg");
             speakWeight(response.data.weightKg); // Đọc to qua loa iPad/laptop
           }
         } catch (error) {

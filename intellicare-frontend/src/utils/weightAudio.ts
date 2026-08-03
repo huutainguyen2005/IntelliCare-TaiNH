@@ -3,6 +3,14 @@ const AUDIO_BASE_URL = "https://intellicare-tainh.onrender.com/audio";
 const audioUrl = (name: string) => `${AUDIO_BASE_URL}/${name}.mp3`;
 
 /**
+ * Làm tròn + format số cân về đúng 2 chữ số thập phân, dùng chung cho cả
+ * hiển thị trên màn hình lẫn đọc âm thanh - đảm bảo 2 nơi luôn khớp nhau.
+ */
+export function formatWeight(weightKg: number): string {
+  return weightKg.toFixed(2);
+}
+
+/**
  * Ghép chuỗi tên file audio cần phát theo đúng ngữ pháp đọc số tiếng Việt
  * (1 -> 999), y hệt thuật toán pushNaturalNumber() bên firmware ESP32.
  */
@@ -48,15 +56,17 @@ function pushNaturalNumber(num: number, queue: string[]): void {
 
 /**
  * Ghép toàn bộ chuỗi tên file cần phát để đọc trọn 1 số cân nặng (kg),
- * y hệt thuật toán audio_speakWeight() bên firmware ESP32.
+ * CHỈ LẤY 2 CHỮ SỐ THẬP PHÂN (làm tròn). Phần thập phân đọc theo từng
+ * chữ số riêng lẻ (VD: 62.05 -> "sáu mươi hai phẩy không năm") để tránh
+ * nhầm lẫn ngữ pháp phức tạp (không cần "mươi/lăm/mốt" cho phần lẻ).
  */
 export function buildWeightAudioQueue(weightKg: number): string[] {
   const queue: string[] = [];
 
-  // Đổi ra gram, làm tròn để tránh sai số thập phân
-  const totalGrams = Math.round(weightKg * 1000);
-  const intPart = Math.floor(totalGrams / 1000); // Phần Ký
-  const decimalPart = totalGrams % 1000; // Phần Gram
+  // Làm tròn về đúng 2 chữ số thập phân (đơn vị: phần trăm kg)
+  const totalCenti = Math.round(weightKg * 100);
+  const intPart = Math.floor(totalCenti / 100); // Phần Ký (số nguyên)
+  const decimalPart = totalCenti % 100; // Phần thập phân, 0-99
 
   // --- Đọc phần nguyên (Ký) ---
   if (intPart === 0) {
@@ -65,25 +75,13 @@ export function buildWeightAudioQueue(weightKg: number): string[] {
     pushNaturalNumber(intPart, queue);
   }
 
-  // --- Đọc phần thập phân ---
+  // --- Đọc phần thập phân (2 chữ số, đọc từng số riêng) ---
   if (decimalPart > 0) {
     queue.push("phay");
-
-    const d1 = Math.floor(decimalPart / 100) % 10;
-    const d2 = Math.floor(decimalPart / 10) % 10;
-    const d3 = decimalPart % 10;
-
-    if (d1 === 0) {
-      queue.push("0");
-      if (d2 === 0) {
-        queue.push("0");
-        queue.push(String(d3));
-      } else {
-        pushNaturalNumber(d2 * 10 + d3, queue);
-      }
-    } else {
-      pushNaturalNumber(decimalPart, queue);
-    }
+    const d1 = Math.floor(decimalPart / 10); // Chữ số hàng chục của phần lẻ
+    const d2 = decimalPart % 10; // Chữ số hàng đơn vị của phần lẻ
+    queue.push(String(d1));
+    queue.push(String(d2));
   }
 
   queue.push("kylogam");
