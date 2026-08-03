@@ -140,17 +140,24 @@ function findTrimBounds(buffer: AudioBuffer): { start: number; end: number } {
   let startSample = 0;
   let endSample = data.length - 1;
 
-  while (startSample < data.length && Math.abs(data[startSample]) < SILENCE_THRESHOLD) {
+  while (
+    startSample < data.length &&
+    Math.abs(data[startSample]) < SILENCE_THRESHOLD
+  ) {
     startSample++;
   }
-  while (endSample > startSample && Math.abs(data[endSample]) < SILENCE_THRESHOLD) {
+  while (
+    endSample > startSample &&
+    Math.abs(data[endSample]) < SILENCE_THRESHOLD
+  ) {
     endSample--;
   }
 
   // Chừa lại 1 chút đệm (10ms) mỗi đầu, tránh cắt cụt mất âm đầu/cuối chữ
   const paddingSamples = Math.floor(sampleRate * 0.06);
   const start = Math.max(0, startSample - paddingSamples) / sampleRate;
-  const end = Math.min(data.length - 1, endSample + paddingSamples) / sampleRate;
+  const end =
+    Math.min(data.length - 1, endSample + paddingSamples) / sampleRate;
 
   return { start, end };
 }
@@ -206,8 +213,14 @@ async function playGapless(fileNames: string[]): Promise<void> {
 /**
  * Đọc to 1 số cân nặng (kg) qua loa thiết bị đang chạy web (iPad/laptop).
  * Gọi hàm này ngay khi nhận được kết quả cân từ Backend.
+ *
+ * Đọc trọn 1 câu tự động theo đúng mẫu:
+ * "Cân nặng hiện tại của bạn là {số} kg. Xin nhắc lại {số} kg."
+ * (phan_tich.mp3 mở đầu, nhac_lai.mp3 trước lượt đọc lại - không cần bấm
+ * nút gì thêm, tự động đọc 2 lượt liền trong cùng 1 lần gọi hàm này.)
  */
 export function speakWeight(weightKg: number): Promise<void> {
-  const queue = buildWeightAudioQueue(weightKg);
+  const numberPart = buildWeightAudioQueue(weightKg); // đã có sẵn "kylogam" ở cuối
+  const queue = ["phan_tich", ...numberPart, "nhac_lai", ...numberPart];
   return playGapless(queue);
 }
