@@ -20,8 +20,8 @@ export default function Scanner() {
   const [weightResult, setWeightResult] = useState<string | null>(null);
   const [isSubmittingScan, setIsSubmittingScan] = useState(false);
 
-  // Đếm ngược tự động chuyển màn hình ở bước COMPLETED (15s)
-  const [autoAdvanceSeconds, setAutoAdvanceSeconds] = useState(15);
+  // Đếm ngược tự động chuyển màn hình ở bước COMPLETED (30s)
+  const [autoAdvanceSeconds, setAutoAdvanceSeconds] = useState(30);
 
   // Danh sách camera thật của máy + camera đang được chọn để quét
   const [cameras, setCameras] = useState<CameraOption[]>([]);

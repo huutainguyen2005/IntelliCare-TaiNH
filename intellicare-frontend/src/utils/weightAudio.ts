@@ -173,11 +173,23 @@ async function playGapless(fileNames: string[]): Promise<void> {
     await ctx.resume();
   }
 
-  let buffers: AudioBuffer[];
-  try {
-    buffers = await Promise.all(fileNames.map((name) => loadBuffer(name)));
-  } catch (error) {
-    console.error("Lỗi tải audio:", error);
+  // Dùng allSettled thay vì all: 1 file lỗi (chưa deploy, mạng lỗi...)
+  // KHÔNG làm câm cả câu - chỉ bỏ qua đúng file đó, phát tiếp phần còn lại.
+  const results = await Promise.allSettled(
+    fileNames.map((name) => loadBuffer(name)),
+  );
+  const buffers: AudioBuffer[] = [];
+
+  results.forEach((result, i) => {
+    if (result.status === "fulfilled") {
+      buffers.push(result.value);
+    } else {
+      console.error(`Lỗi tải audio "${fileNames[i]}":`, result.reason);
+    }
+  });
+
+  if (buffers.length === 0) {
+    console.error("Không tải được file audio nào, bỏ qua phát âm thanh.");
     return;
   }
 
