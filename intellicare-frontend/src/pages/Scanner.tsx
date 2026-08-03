@@ -125,7 +125,7 @@ export default function Scanner() {
         aspectRatio: 1.0,
         formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
         videoConstraints: {
-          facingMode: "environment, user",
+          facingMode: { ideal: ["user", "environment"] },
           advanced: [{ focusMode: "continuous" } as any],
         },
       },
