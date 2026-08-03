@@ -44,19 +44,4 @@
 #define DEVICE_ID "SCALE_001"
 #define API_RETRY_DELAY 3000 // Chờ 3s nếu API lỗi
 
-// ================= CẤU HÌNH MQTT (EMQX) =================
-// Đổi thành domain/IP broker EMQX của bạn (self-host hoặc EMQX Cloud)
-#define MQTT_BROKER_HOST "192.168.137.1"
-// 1883 = plaintext (dev/test) | 8883 = TLS (khuyên dùng khi lên production)
-#define MQTT_BROKER_PORT 1883
-
-// Username/password RIÊNG cho từng thiết bị, tạo qua EMQX Dashboard
-// (Authentication -> mỗi SCALE_00x một tài khoản, và set ACL chỉ cho
-// publish/subscribe đúng topic "scale/<DEVICE_ID>/#" của chính nó)
-#define MQTT_USERNAME "SCALE_001"
-#define MQTT_PASSWORD "doi-mat-khau-nay"
-
-// Bao lâu thử reconnect lại 1 lần nếu mất kết nối MQTT (ms)
-#define MQTT_RECONNECT_INTERVAL 5000
-
 #endif
