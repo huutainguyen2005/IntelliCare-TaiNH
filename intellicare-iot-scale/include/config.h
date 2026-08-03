@@ -40,7 +40,7 @@
 #define WIFI_PASSWORD "12345678"       // Mật khẩu (Dùng cho Loại 2 và 3)
 #define WIFI_USERNAME "KienNTCE190036" // ID Sinh viên (Chỉ dùng cho Loại 3)
 
-#define SERVER_URL "http://192.168.137.1:8080/api/measurements/submit"
+#define SERVER_URL "https://intellicare-tainh.onrender.com/api/measurements/submit"
 #define DEVICE_ID "SCALE_001"
 #define API_RETRY_DELAY 3000 // Chờ 3s nếu API lỗi
 

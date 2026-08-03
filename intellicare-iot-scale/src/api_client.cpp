@@ -1,6 +1,7 @@
 #include "api_client.h"
 #include "config.h"
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
@@ -60,9 +61,22 @@ bool sendWeightData(float weightKg)
         return false;
     }
 
+    // Render bắt buộc HTTPS (TLS) - dùng WiFiClientSecure thay cho WiFiClient
+    // thường. setInsecure() = bỏ qua xác thực chứng chỉ CA (đơn giản, đủ
+    // dùng cho đồ án/demo). Muốn chặt chẽ hơn (chống man-in-the-middle),
+    // thay bằng client.setCACert(RENDER_ROOT_CA) với đúng chứng chỉ gốc
+    // Let's Encrypt/DigiCert mà Render đang dùng.
+    WiFiClientSecure client;
+    client.setInsecure();
+
     HTTPClient http;
-    http.begin(SERVER_URL);
+    http.begin(client, SERVER_URL);
     http.addHeader("Content-Type", "application/json");
+    // Render free tier có thể "ngủ" sau 15 phút không hoạt động, lần gọi
+    // đầu tiên sau khi ngủ mất 10-30s để "tỉnh" - timeout mặc định 5s là
+    // không đủ. Nếu nâng lên gói trả phí (không bị ngủ), có thể giảm lại.
+    http.setTimeout(30000);
+    http.setConnectTimeout(30000);
 
     StaticJsonDocument<200> doc;
     doc["deviceId"] = DEVICE_ID;
