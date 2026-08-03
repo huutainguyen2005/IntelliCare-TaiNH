@@ -20,6 +20,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import javax.crypto.spec.SecretKeySpec;
 
@@ -31,6 +32,12 @@ public class SecurityConfig {
     // Khóa bí mật dùng để mã hóa JWT (Nên đặt trong application.properties, đây là fallback)
     @Value("${jwt.secret:DayLaMotKhoaBiMatRatDaiVaAnToanChoUngDungCuaBan1234567890}")
     private String jwtSecretKey;
+
+    private final DeviceApiKeyFilter deviceApiKeyFilter;
+
+    public SecurityConfig(DeviceApiKeyFilter deviceApiKeyFilter) {
+        this.deviceApiKeyFilter = deviceApiKeyFilter;
+    }
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -46,6 +53,10 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**", "/error", "/api/measurements/**", "/audio/**").permitAll()
                         .anyRequest().authenticated()
                 )
+
+                // Kiểm tra Device API Key TRƯỚC khi vào Controller - áp dụng
+                // riêng cho /api/measurements/** (Kiosk/ESP32 không có JWT)
+                .addFilterBefore(deviceApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
 
                 // 3. Cấu hình Resource Server
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(
