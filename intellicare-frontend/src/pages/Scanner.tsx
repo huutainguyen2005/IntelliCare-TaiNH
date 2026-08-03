@@ -369,6 +369,36 @@ export default function Scanner() {
             <p style={{ color: "#64748b", fontSize: "14px" }}>
               Vui lòng bước lên bàn cân và đứng vững...
             </p>
+
+            {/* NÚT GIẢ LẬP CÂN - CHỈ HIỆN LÚC "npm run dev" (import.meta.env.DEV
+                tự động là false khi build production, KHÔNG BAO GIỜ lộ ra bản
+                thật chạy trên Kiosk). Dùng để test không cần cân vật lý. */}
+            {import.meta.env.DEV && (
+              <button
+                onClick={async () => {
+                  const fakeWeight =
+                    Math.round((40 + Math.random() * 60) * 100) / 100;
+                  try {
+                    await axiosClient.post("/api/measurements/submit", {
+                      deviceId,
+                      weightKg: fakeWeight,
+                    });
+                  } catch (error: any) {
+                    const backendMsg = error.response?.data;
+                    showModal(
+                      typeof backendMsg === "string"
+                        ? backendMsg
+                        : "Giả lập cân thất bại (xem Console).",
+                      "error",
+                    );
+                    console.error(error);
+                  }
+                }}
+                style={styles.btnDevSimulate}
+              >
+                🧪 [DEV] Giả lập cân ngay
+              </button>
+            )}
           </div>
         )}
 
@@ -493,6 +523,18 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     boxShadow: "0 4px 10px rgba(13, 148, 136, 0.2)",
     transition: "0.2s",
+  },
+  btnDevSimulate: {
+    marginTop: "16px",
+    width: "100%",
+    padding: "10px",
+    backgroundColor: "#fef3c7",
+    color: "#92400e",
+    border: "1px dashed #f59e0b",
+    borderRadius: "8px",
+    fontSize: "12px",
+    fontWeight: 700,
+    cursor: "pointer",
   },
   pendingCard: {
     padding: "30px 20px",
