@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from "react";
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import React, { useState, useEffect, useRef } from "react";
+import { Html5Qrcode } from "html5-qrcode";
 import axiosClient from "../api/axiosClient";
 import Modal from "../components/Modal";
 import { useCustomAuth } from "../context/AuthContext";
+
+interface CameraOption {
+  id: string;
+  label: string;
+}
 
 export default function Scanner() {
   const { user } = useCustomAuth();
@@ -13,6 +18,13 @@ export default function Scanner() {
   );
   const [weightResult, setWeightResult] = useState<string | null>(null);
   const [isSubmittingScan, setIsSubmittingScan] = useState(false);
+
+  // Danh sách camera thật của máy + camera đang được chọn để quét
+  const [cameras, setCameras] = useState<CameraOption[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>("");
+  const [cameraError, setCameraError] = useState<string>("");
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const isScanningRef = useRef(false);
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -34,42 +46,13 @@ export default function Scanner() {
     if (modalConfig.onConfirm) modalConfig.onConfirm();
   };
 
-  // ============================================================
-  // [ĐANG TẮT] MÁY QUÉT MÃ VẠCH VẬT LÝ (Keyboard Wedge/HID)
-  // Bật lại đoạn này (và comment khối CAMERA bên dưới) khi chuyển
-  // sang dùng máy quét vật lý cắm dây thay vì camera iPad.
-  // ============================================================
-  // const scannerInputRef = useRef<HTMLInputElement>(null);
-  // const [scanBuffer, setScanBuffer] = useState("");
-  //
-  // useEffect(() => {
-  //   if (status !== "IDLE") return;
-  //   const focusHiddenInput = () => scannerInputRef.current?.focus();
-  //   focusHiddenInput();
-  //   const intervalId = setInterval(focusHiddenInput, 400);
-  //   document.addEventListener("click", focusHiddenInput);
-  //   return () => {
-  //     clearInterval(intervalId);
-  //     document.removeEventListener("click", focusHiddenInput);
-  //   };
-  // }, [status]);
-  //
-  // const handleScannerFormSubmit = (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   const raw = scanBuffer;
-  //   setScanBuffer("");
-  //   processScanRaw(raw);
-  // };
-
-  // Xử lý dữ liệu sau khi có chuỗi CCCD (dù từ camera hay máy quét vật lý
-  // đều gọi chung hàm này). Gọi đúng endpoint BE: POST /api/measurements/scan-qr
-  // BE sẽ tự tạo bệnh nhân mới nếu CCCD chưa từng đo (không cần OTP tại kiosk)
-  // và khởi tạo phiên đo ngay lập tức, trả về MeasurementSessionResponseDTO.
+  // Xử lý dữ liệu sau khi có chuỗi CCCD. Gọi đúng endpoint BE:
+  // POST /api/measurements/scan-qr - BE sẽ tự tạo bệnh nhân mới nếu CCCD
+  // chưa từng đo và khởi tạo phiên đo ngay lập tức.
   const processScanRaw = async (rawInput: string) => {
     const fixedText = rawInput.trim();
     if (!fixedText || isSubmittingScan) return;
 
-    // Validate nhanh: mã CCCD hợp lệ phải tách được ít nhất 7 trường
     if (fixedText.split("|").length < 7) {
       showModal(
         "Dữ liệu quét không hợp lệ (không đúng định dạng CCCD). Vui lòng quét lại!",
@@ -85,9 +68,8 @@ export default function Scanner() {
         rawQrData: fixedText,
       });
 
-      const session = response.data; // MeasurementSessionResponseDTO
+      const session = response.data;
 
-      // Chặn bệnh nhân quét CCCD của người khác (khi đang đăng nhập là patient)
       if (user && user.role === "ROLE_PATIENT") {
         if (session.patientName !== user.fullName) {
           showModal(
@@ -112,46 +94,71 @@ export default function Scanner() {
   };
 
   // ============================================================
-  // CAMERA QUÉT QR (dùng camera của iPad/máy tính làm kiosk)
+  // BƯỚC 1: LIỆT KÊ TOÀN BỘ CAMERA THẬT CỦA MÁY (chỉ 1 lần lúc vào trang)
   // ============================================================
   useEffect(() => {
     if (status !== "IDLE") return;
 
-    const scanner = new Html5QrcodeScanner(
-      "reader",
-      {
-        fps: 25,
-        qrbox: { width: 280, height: 280 },
-        aspectRatio: 1.0,
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-        videoConstraints: {
-          // Ưu tiên camera TRƯỚC (đang dùng để demo Kiosk trên iPad), nếu
-          // máy không có thì tự động rơi qua camera sau - không báo lỗi.
-          facingMode: { ideal: ["user", "environment"] },
-          advanced: [{ focusMode: "continuous" } as any],
-        },
-      },
-      false,
-    );
+    Html5Qrcode.getCameras()
+      .then((devices) => {
+        if (!devices || devices.length === 0) {
+          setCameraError("Không tìm thấy camera nào trên thiết bị này!");
+          return;
+        }
+        setCameras(devices);
+        // Mặc định chọn camera đầu tiên - người dùng có thể đổi qua dropdown
+        setSelectedCameraId((prev) => prev || devices[0].id);
+      })
+      .catch(() => {
+        setCameraError(
+          "Không thể truy cập camera. Vui lòng cấp quyền camera cho trang này!",
+        );
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
+  // ============================================================
+  // BƯỚC 2: KHỞI ĐỘNG QUÉT với ĐÚNG camera người dùng đã chọn
+  // Tự restart lại mỗi khi selectedCameraId đổi (người dùng chọn camera khác)
+  // ============================================================
+  useEffect(() => {
+    if (status !== "IDLE" || !selectedCameraId) return;
 
     let isHandled = false;
+    const html5QrCode = new Html5Qrcode("reader");
+    html5QrCodeRef.current = html5QrCode;
 
-    scanner.render(
-      async (decodedText) => {
-        if (isHandled) return; // Chặn quét trùng nhiều lần liên tiếp
-        isHandled = true;
-
-        scanner.clear().catch(() => {});
-        await processScanRaw(decodedText.trim());
-      },
-      (_error) => {},
-    );
+    html5QrCode
+      .start(
+        selectedCameraId,
+        { fps: 25, qrbox: { width: 280, height: 280 }, aspectRatio: 1.0 },
+        async (decodedText) => {
+          if (isHandled) return; // Chặn quét trùng nhiều lần liên tiếp
+          isHandled = true;
+          await processScanRaw(decodedText.trim());
+        },
+        (_error) => {},
+      )
+      .then(() => {
+        isScanningRef.current = true;
+      })
+      .catch(() => {
+        setCameraError(
+          "Không thể khởi động camera đã chọn. Vui lòng thử camera khác!",
+        );
+      });
 
     return () => {
-      scanner.clear().catch(() => {});
+      if (isScanningRef.current) {
+        html5QrCode
+          .stop()
+          .then(() => html5QrCode.clear())
+          .catch(() => {});
+        isScanningRef.current = false;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, deviceId, user]);
+  }, [status, selectedCameraId, deviceId, user]);
 
   // Lắng nghe kết quả Cân nặng từ IoT
   useEffect(() => {
@@ -193,13 +200,35 @@ export default function Scanner() {
             <div style={styles.configSection}>
               <p style={styles.configLabel}>Quét thẻ CCCD để bắt đầu</p>
 
+              {/* DROPDOWN CHỌN CAMERA - liệt kê đúng camera thật của máy,
+                  người dùng tự chọn, không đoán tự động qua facingMode nữa */}
+              {cameras.length > 0 && (
+                <select
+                  style={styles.cameraSelect}
+                  value={selectedCameraId}
+                  onChange={(e) => setSelectedCameraId(e.target.value)}
+                >
+                  {cameras.map((cam) => (
+                    <option key={cam.id} value={cam.id}>
+                      {cam.label || `Camera ${cam.id}`}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {cameraError && (
+                <p
+                  style={{
+                    color: "#ef4444",
+                    fontSize: "13px",
+                    marginTop: "8px",
+                  }}
+                >
+                  ⚠️ {cameraError}
+                </p>
+              )}
+
               {/* CAMERA QUÉT QR */}
-              {/* Ép video preview KHÔNG bị lật gương - camera trước (facingMode
-                  "user") nhiều trình duyệt tự lật ngang cho cảm giác tự nhiên
-                  kiểu selfie, nhưng với Kiosk thì gây rối (đưa CCCD sang phải
-                  mà màn hình lại thấy chạy sang trái). Không ảnh hưởng tới
-                  việc giải mã QR - thư viện đọc từ buffer gốc, không phải
-                  phần đã bị CSS lật để hiển thị. */}
               <style>{`
                 #reader video {
                   transform: none !important;
@@ -212,7 +241,7 @@ export default function Scanner() {
                   width: "100%",
                   overflow: "hidden",
                   borderRadius: "10px",
-                  margin: "0 auto",
+                  margin: "10px auto 0",
                 }}
               ></div>
 
@@ -228,25 +257,6 @@ export default function Scanner() {
                   Đang xử lý dữ liệu, vui lòng đợi...
                 </p>
               )}
-
-              {/* [ĐANG TẮT] Form ẩn hứng dữ liệu từ máy quét vật lý.
-                  Bật lại cùng lúc với khối useEffect Keyboard Wedge phía trên. */}
-              {/* <form onSubmit={handleScannerFormSubmit}>
-                <input
-                  ref={scannerInputRef}
-                  value={scanBuffer}
-                  onChange={(e) => setScanBuffer(e.target.value)}
-                  autoFocus
-                  style={{
-                    position: "absolute",
-                    opacity: 0,
-                    height: 0,
-                    width: 0,
-                    border: "none",
-                    padding: 0,
-                  }}
-                />
-              </form> */}
             </div>
 
             <div style={{ marginTop: "15px" }}>
@@ -371,6 +381,18 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     color: "#475569",
     marginBottom: "10px",
+  },
+  cameraSelect: {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: "10px",
+    border: "1px solid #cbd5e1",
+    fontSize: "14px",
+    fontWeight: 600,
+    color: "#334155",
+    backgroundColor: "#ffffff",
+    outline: "none",
+    cursor: "pointer",
   },
   inputField: {
     width: "100%",
