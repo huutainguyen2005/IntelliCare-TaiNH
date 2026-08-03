@@ -1,10 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// ================= CẤU HÌNH ÂM THANH (I2S MAX98357A) =================
-#define I2S_LRC_PIN 15
-#define I2S_BCLK_PIN 16
-#define I2S_DOUT_PIN 17
 
 // ================= CẤU HÌNH PHẦN CỨNG =================
 // Chân I2C (Màn hình LCD)

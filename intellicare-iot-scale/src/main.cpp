@@ -3,15 +3,11 @@
 #include "api_client.h"
 #include "weight_sensor.h"
 #include "display_ui.h"
-#include "audio_manager.h"
 
 volatile bool needToSend = false;
 volatile float weightToSend = 0.0;
 volatile bool isSent = false;
 volatile bool isDisplayingError = false;
-
-bool isVoicePlayed = false;
-bool isWeightSpoken = false; // Cờ kiểm soát việc đọc số cân
 
 unsigned long lastApiTime = 0;
 unsigned long stableStartTime = 0;
@@ -56,8 +52,6 @@ void setup()
   ui_showSensorInit();
   sensor_init();
 
-  audio_init();
-  audio_playBoot();
   xTaskCreatePinnedToCore(apiTaskCode, "APITask", 8192, NULL, 1, NULL, 0);
 }
 
@@ -78,12 +72,8 @@ void loop()
         isSent = false;
         isDisplayingError = false;
         needToSend = false;
-        isVoicePlayed = false;
-        isWeightSpoken = false;
         lastCheckedWeight = 0.0;
         emptyStartTime = millis();
-        // Nếu file audio_manager.h của bạn có hàm audio_stopAll(); thì bạn có thể bỏ comment dòng dưới
-        // audio_stopAll();
       }
     }
   }
@@ -101,30 +91,18 @@ void loop()
 
     if (current_weight > 0.02 && !isSent)
     {
-      if (!isVoicePlayed)
-      {
-        audio_playVoice();
-        isVoicePlayed = true;
-      }
-
       if (current_weight != lastCheckedWeight)
       {
         lastCheckedWeight = current_weight;
         stableStartTime = millis();
       }
 
-      // --- LOGIC CHỐT SỐ SAU 1.5 GIÂY ---
+      // --- LOGIC CHỐT SỐ SAU KHI ỔN ĐỊNH (STABILIZE_DURATION) ---
       if (millis() - stableStartTime > STABILIZE_DURATION)
       {
-        // 1. Gọi hệ thống đọc số cân (Chỉ gọi 1 lần)
-        if (!isWeightSpoken)
-        {
-          audio_speakWeight(current_weight);
-          isWeightSpoken = true;
-        }
-
-        // 2. GỬI DỮ LIỆU API (ĐÃ TỐI ƯU)
-        if (!audio_isPlaying() && !needToSend && (millis() - lastApiTime > API_RETRY_DELAY))
+        // Đọc số cân giờ do Web (iPad/laptop) đảm nhiệm sau khi nhận API
+        // trả về - ESP32 chỉ còn nhiệm vụ gửi số liệu lên Backend.
+        if (!needToSend && (millis() - lastApiTime > API_RETRY_DELAY))
         {
           weightToSend = current_weight;
           needToSend = true;
@@ -140,11 +118,7 @@ void loop()
         isSent = false;
         isDisplayingError = false;
         needToSend = false;
-        isVoicePlayed = false;
-        isWeightSpoken = false; // Reset cờ đọc số khi nhấc đồ vật ra
         lastCheckedWeight = 0.0;
-        // Nếu file audio_manager.h của bạn có hàm audio_stopAll(); thì bạn có thể bỏ comment dòng dưới
-        // audio_stopAll();
       }
     }
     else
@@ -160,8 +134,6 @@ void loop()
       lastUiUpdateTime = millis();
     }
   }
-
-  audio_loop();
 
   yield();
 }
