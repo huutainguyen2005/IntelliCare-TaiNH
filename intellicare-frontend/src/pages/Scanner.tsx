@@ -14,11 +14,14 @@ export default function Scanner() {
   const { user } = useCustomAuth();
   const [patientName, setPatientName] = useState<string>("");
   const [deviceId, setDeviceId] = useState("SCALE_001");
-  const [status, setStatus] = useState<"IDLE" | "PENDING" | "COMPLETED">(
-    "IDLE",
-  );
+  const [status, setStatus] = useState<
+    "IDLE" | "READY" | "PENDING" | "COMPLETED"
+  >("IDLE");
   const [weightResult, setWeightResult] = useState<string | null>(null);
   const [isSubmittingScan, setIsSubmittingScan] = useState(false);
+
+  // Đếm ngược tự động chuyển màn hình ở bước COMPLETED (15s)
+  const [autoAdvanceSeconds, setAutoAdvanceSeconds] = useState(15);
 
   // Danh sách camera thật của máy + camera đang được chọn để quét
   const [cameras, setCameras] = useState<CameraOption[]>([]);
@@ -82,7 +85,7 @@ export default function Scanner() {
       }
 
       setPatientName(session.patientName);
-      setStatus("PENDING");
+      setStatus("READY");
     } catch (error: any) {
       const backendMsg =
         typeof error.response?.data === "string"
@@ -160,6 +163,34 @@ export default function Scanner() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, selectedCameraId, deviceId, user]);
+
+  // Dùng chung cho cả bấm "Xác nhận" tay lẫn tự động hết 15s
+  const resetToScanScreen = () => {
+    setStatus("IDLE");
+    setPatientName("");
+    setWeightResult(null);
+  };
+
+  // Đếm ngược 15s ở màn KẾT QUẢ - hết giờ mà bệnh nhân không bấm "Xác nhận"
+  // thì tự động quay lại màn quét cho bệnh nhân tiếp theo.
+  useEffect(() => {
+    if (status !== "COMPLETED") return;
+
+    setAutoAdvanceSeconds(15);
+    const countdownId = setInterval(() => {
+      setAutoAdvanceSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownId);
+          resetToScanScreen();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(countdownId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   // Lắng nghe kết quả Cân nặng từ IoT
   useEffect(() => {
@@ -278,6 +309,51 @@ export default function Scanner() {
           </>
         )}
 
+        {status === "READY" && (
+          <div style={styles.readyCard}>
+            <div style={styles.readyIcon}>🧍</div>
+            <h3
+              style={{
+                color: "#0d9488",
+                fontSize: "18px",
+                margin: "10px 0 5px 0",
+              }}
+            >
+              Đã xác nhận bệnh nhân
+            </h3>
+            <p
+              style={{
+                color: "#64748b",
+                fontSize: "14px",
+                marginBottom: "20px",
+              }}
+            >
+              Vui lòng bước lên bàn cân khi đã sẵn sàng.
+            </p>
+            <button
+              onClick={async () => {
+                try {
+                  await axiosClient.post("/api/measurements/start-weighing", {
+                    deviceId,
+                  });
+                  setStatus("PENDING");
+                } catch (error: any) {
+                  const backendMsg = error.response?.data?.message;
+                  showModal(
+                    backendMsg ||
+                      "Không thể bắt đầu phiên cân. Vui lòng quét lại CCCD!",
+                    "error",
+                    () => resetToScanScreen(),
+                  );
+                }
+              }}
+              style={styles.btnSuccess}
+            >
+              TIẾN HÀNH CÂN
+            </button>
+          </div>
+        )}
+
         {status === "PENDING" && (
           <div style={styles.pendingCard}>
             <div style={styles.pulseSpinner}></div>
@@ -309,16 +385,12 @@ export default function Scanner() {
               KẾT QUẢ ĐO CỦA BẠN
             </h2>
             <div style={styles.weightDisplay}>{weightResult}</div>
-            <button
-              onClick={() => {
-                setStatus("IDLE");
-                setPatientName("");
-                setWeightResult(null);
-              }}
-              style={styles.btnSuccess}
-            >
-              QUÉT BỆNH NHÂN TIẾP THEO
+            <button onClick={resetToScanScreen} style={styles.btnSuccess}>
+              XÁC NHẬN
             </button>
+            <p style={styles.autoAdvanceText}>
+              Tự động chuyển sau {autoAdvanceSeconds} giây...
+            </p>
           </div>
         )}
       </div>
@@ -430,6 +502,24 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
+  },
+  readyCard: {
+    padding: "30px 20px",
+    border: "2px solid #0d9488",
+    borderRadius: "16px",
+    backgroundColor: "#f0fdfa",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+  },
+  readyIcon: {
+    fontSize: "40px",
+  },
+  autoAdvanceText: {
+    marginTop: "12px",
+    fontSize: "12px",
+    color: "#94a3b8",
+    fontStyle: "italic",
   },
   pulseSpinner: {
     width: "24px",
