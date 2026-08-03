@@ -40,4 +40,9 @@
 #define DEVICE_ID "SCALE_001"
 #define API_RETRY_DELAY 3000 // Chờ 3s nếu API lỗi
 #define SERVER_URL "https://intellicare-tainh.onrender.com/api/measurements/submit"
+
+// Khóa bí mật gửi kèm mọi request tới /api/measurements/** - PHẢI khớp
+// đúng giá trị DEVICE_API_KEY đang set trên Backend (Render Environment
+// Variables hoặc file .env nếu test local).
+#define DEVICE_API_KEY "JFybtCGiMmuLA-1EIoyB6jM-hfUISyC97XsdpoLh2Yc"
 #endif

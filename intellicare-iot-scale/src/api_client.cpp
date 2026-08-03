@@ -239,6 +239,9 @@ bool sendWeightData(float weightKg)
     }
 
     http.addHeader("Content-Type", "application/json");
+    // Backend giờ yêu cầu header này khớp DEVICE_API_KEY mới cho gọi được
+    // /api/measurements/** (trước đây permitAll hoàn toàn, không an toàn)
+    http.addHeader("X-Device-Key", DEVICE_API_KEY);
     // Render free tier có thể "ngủ" sau 15 phút không hoạt động, lần gọi
     // đầu tiên sau khi ngủ mất 10-30s để "tỉnh" - 1000ms là chắc chắn timeout.
     http.setTimeout(30000);
