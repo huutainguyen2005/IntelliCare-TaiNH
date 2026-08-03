@@ -125,6 +125,8 @@ export default function Scanner() {
         aspectRatio: 1.0,
         formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
         videoConstraints: {
+          // Ưu tiên camera TRƯỚC (đang dùng để demo Kiosk trên iPad), nếu
+          // máy không có thì tự động rơi qua camera sau - không báo lỗi.
           facingMode: { ideal: ["user", "environment"] },
           advanced: [{ focusMode: "continuous" } as any],
         },
@@ -136,7 +138,7 @@ export default function Scanner() {
 
     scanner.render(
       async (decodedText) => {
-        if (isHandled) return;
+        if (isHandled) return; // Chặn quét trùng nhiều lần liên tiếp
         isHandled = true;
 
         scanner.clear().catch(() => {});
@@ -192,6 +194,18 @@ export default function Scanner() {
               <p style={styles.configLabel}>Quét thẻ CCCD để bắt đầu</p>
 
               {/* CAMERA QUÉT QR */}
+              {/* Ép video preview KHÔNG bị lật gương - camera trước (facingMode
+                  "user") nhiều trình duyệt tự lật ngang cho cảm giác tự nhiên
+                  kiểu selfie, nhưng với Kiosk thì gây rối (đưa CCCD sang phải
+                  mà màn hình lại thấy chạy sang trái). Không ảnh hưởng tới
+                  việc giải mã QR - thư viện đọc từ buffer gốc, không phải
+                  phần đã bị CSS lật để hiển thị. */}
+              <style>{`
+                #reader video {
+                  transform: none !important;
+                  -webkit-transform: none !important;
+                }
+              `}</style>
               <div
                 id="reader"
                 style={{
