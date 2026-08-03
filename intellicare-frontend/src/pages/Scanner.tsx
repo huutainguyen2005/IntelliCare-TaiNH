@@ -136,7 +136,7 @@ export default function Scanner() {
 
     scanner.render(
       async (decodedText) => {
-        if (isHandled) return; // Chặn quét trùng nhiều lần liên tiếp
+        if (isHandled) return;
         isHandled = true;
 
         scanner.clear().catch(() => {});
