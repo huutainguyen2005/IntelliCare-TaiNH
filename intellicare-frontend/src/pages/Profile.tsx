@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useCustomAuth } from "../context/AuthContext";
 import axiosClient from "../api/axiosClient";
+import { formatWeight } from "../utils/weightAudio";
 
 interface UserProfile {
   identifier: string;
@@ -252,7 +253,7 @@ const Profile: React.FC = () => {
                     color: latestRiskStatus.isRisk ? "#b91c1c" : "#0d9488",
                   }}
                 >
-                  {profile?.weightKg ? `${profile.weightKg}` : "---"}{" "}
+                  {profile?.weightKg ? formatWeight(profile.weightKg) : "---"}{" "}
                   <span style={{ fontSize: "20px", fontWeight: 600 }}>kg</span>
                 </span>
                 {latestRiskStatus.isRisk && (
@@ -318,7 +319,7 @@ const Profile: React.FC = () => {
                                   color: logRisk.isRisk ? "#dc2626" : "#0f766e",
                                 }}
                               >
-                                {log.weightKg}{" "}
+                                {formatWeight(log.weightKg)}{" "}
                                 <span
                                   style={{ fontSize: "14px", fontWeight: 700 }}
                                 >
