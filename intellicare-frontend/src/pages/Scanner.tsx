@@ -27,6 +27,9 @@ export default function Scanner() {
   const [cameras, setCameras] = useState<CameraOption[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string>("");
   const [cameraError, setCameraError] = useState<string>("");
+  // Ô nhập tay CCCD (chỉ hiện lúc npm run dev) - dùng khi máy không có
+  // camera, khỏi cần webcam mới test được luồng quét.
+  const [manualQrInput, setManualQrInput] = useState<string>("");
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const isScanningRef = useRef(false);
 
@@ -233,6 +236,34 @@ export default function Scanner() {
             <div style={styles.configSection}>
               <p style={styles.configLabel}>Quét thẻ CCCD để bắt đầu</p>
 
+              {/* Ô NHẬP TAY CCCD - CHỈ HIỆN LÚC "npm run dev" (import.meta.env.DEV
+                  tự động false khi build production). Dùng khi máy không có
+                  camera, khỏi cần webcam mới test được. */}
+              {import.meta.env.DEV && (
+                <div style={styles.devManualBox}>
+                  <p style={styles.devManualLabel}>
+                    🧪 [DEV] Dán chuỗi CCCD (không cần camera)
+                  </p>
+                  <textarea
+                    style={styles.devManualTextarea}
+                    rows={2}
+                    placeholder="001095000123|012345678|NGUYỄN VĂN A|01012005|Nam|Địa chỉ...|25122021"
+                    value={manualQrInput}
+                    onChange={(e) => setManualQrInput(e.target.value)}
+                  />
+                  <button
+                    style={styles.btnDevSimulate}
+                    disabled={isSubmittingScan}
+                    onClick={async () => {
+                      await processScanRaw(manualQrInput);
+                      setManualQrInput("");
+                    }}
+                  >
+                    Xử lý chuỗi này
+                  </button>
+                </div>
+              )}
+
               {/* DROPDOWN CHỌN CAMERA - liệt kê đúng camera thật của máy,
                   người dùng tự chọn, không đoán tự động qua facingMode nữa */}
               {cameras.length > 0 && (
@@ -311,6 +342,7 @@ export default function Scanner() {
 
         {status === "READY" && (
           <div style={styles.readyCard}>
+            <div style={styles.readyIcon}>🧍</div>
             <h3
               style={{
                 color: "#0d9488",
@@ -318,7 +350,7 @@ export default function Scanner() {
                 margin: "10px 0 5px 0",
               }}
             >
-              Đã xác nhận
+              Đã xác nhận bệnh nhân
             </h3>
             <p
               style={{
@@ -534,6 +566,30 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "12px",
     fontWeight: 700,
     cursor: "pointer",
+  },
+  devManualBox: {
+    backgroundColor: "#fffbeb",
+    border: "1px dashed #f59e0b",
+    borderRadius: "10px",
+    padding: "10px",
+    marginBottom: "12px",
+    textAlign: "left",
+  },
+  devManualLabel: {
+    fontSize: "12px",
+    fontWeight: 700,
+    color: "#92400e",
+    margin: "0 0 6px 0",
+  },
+  devManualTextarea: {
+    width: "100%",
+    padding: "8px",
+    borderRadius: "6px",
+    border: "1px solid #fcd34d",
+    fontSize: "12px",
+    fontFamily: "monospace",
+    boxSizing: "border-box",
+    resize: "vertical",
   },
   pendingCard: {
     padding: "30px 20px",
