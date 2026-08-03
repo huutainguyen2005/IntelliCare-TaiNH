@@ -36,15 +36,15 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(Customizer.withDefaults()) // Sẽ tự động lấy cấu hình từ CorsConfig.java của bạn
+                .cors(Customizer.withDefaults())
 
                 // 1. Cấu hình stateless session
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 // 2. Phân quyền Endpoint
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/error", "/api/measurements/**").permitAll() // Mở khóa cho endpoint đăng nhập
-                        .anyRequest().authenticated() // Mọi request khác đều phải có token
+                        .requestMatchers("/auth/**", "/error", "/api/measurements/**", "/audio/**").permitAll()
+                        .anyRequest().authenticated()
                 )
 
                 // 3. Cấu hình Resource Server
