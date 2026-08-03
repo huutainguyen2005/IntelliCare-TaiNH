@@ -16,5 +16,7 @@ public interface IMeasurementSessionService {
     MeasurementSessionResponseDTO startSessionFromQr(String deviceId, String rawQrData);
 
     MeasurementSessionResponseDTO initSessionForExistingPatient(String deviceId, Patient patient);
+
+    MeasurementSessionResponseDTO startWeighing(String deviceId);
 }
 

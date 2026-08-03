@@ -25,7 +25,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class MeasurementSessionServiceImpl implements IMeasurementSessionService {
-   
+
     private final MeasurementSessionRepository measurementSessionRepository;
     private final WeightLogRepository weightLogRepository;
     private final PatientRepository patientRepository;
@@ -40,7 +40,6 @@ public class MeasurementSessionServiceImpl implements IMeasurementSessionService
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thiết bị với ID: " + deviceId));
 
-        // 2. Tạo phiên mới và lưu
         MeasurementSession session = new MeasurementSession();
         session.setPatient(patient);
         session.setDevice(device);
@@ -51,14 +50,17 @@ public class MeasurementSessionServiceImpl implements IMeasurementSessionService
 
     @Override
     public void recordWeight(String deviceId, Double weightKg) {
+        // CHỈ nhận dữ liệu cân cho session đã THỰC SỰ ở trạng thái Pending
+        // (tức bệnh nhân đã bấm "Tiến hành cân"). Nếu session vẫn đang
+        // AwaitingStart (chưa bấm nút), sẽ không tìm thấy gì ở đây -> ném
+        // lỗi -> ESP32 tự bỏ qua/thử lại, không làm hỏng phiên đo thật.
         MeasurementSession session = measurementSessionRepository
                 .findTopByDevice_DeviceIdAndStatusOrderByCreatedAtDesc(
                         deviceId,
                         SessionStatus.Pending)
                 .orElseThrow(() -> new RuntimeException(
-                        "Thiết bị " + deviceId + " chưa được quét QR hoặc phiên đã hết hạn"));
+                        "Thiết bị " + deviceId + " chưa sẵn sàng nhận cân (chưa bấm Tiến hành cân hoặc phiên đã hết hạn)"));
 
-        // 2. Tạo Log cân nặng
         WeightLog log = new WeightLog();
         log.setPatient(session.getPatient());
         log.setDevice(session.getDevice());
@@ -66,23 +68,19 @@ public class MeasurementSessionServiceImpl implements IMeasurementSessionService
 
         weightLogRepository.save(log);
 
-        // 3. Đóng phiên
         session.setStatus(SessionStatus.Completed);
         measurementSessionRepository.save(session);
     }
 
     @Override
     public MeasurementSessionResponseDTO getLatestSession(String deviceId) {
-        // 1. Tìm phiên làm việc mới nhất của cân này trong DB
         MeasurementSession session = measurementSessionRepository
                 .findTopByDevice_DeviceIdOrderByCreatedAtDesc(deviceId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên đo nào cho thiết bị: " + deviceId));
 
-        // 2. Mặc định cân nặng là null (nếu đang Pending)
         Double weightResult = null;
 
-        // 3. Nếu phiên đã đo xong (Completed), móc vào bảng Weight_Logs lôi số ký ra
-        if (session.getStatus() == vn.edu.fpt.sba.intellicare.enums.SessionStatus.Completed) {
+        if (session.getStatus() == SessionStatus.Completed) {
             weightResult = weightLogRepository
                     .findTopByDevice_DeviceIdAndPatient_PatientIdOrderByLogIdDesc(
                             session.getDevice().getDeviceId(),
@@ -91,7 +89,6 @@ public class MeasurementSessionServiceImpl implements IMeasurementSessionService
                     .orElse(null);
         }
 
-        // 4. Chuyển đổi từ Entity sang DTO để trả về cho Frontend
         return new MeasurementSessionResponseDTO(
                 session.getSessionId(),
                 session.getDevice().getDeviceId(),
@@ -106,23 +103,13 @@ public class MeasurementSessionServiceImpl implements IMeasurementSessionService
     @Override
     @Transactional
     public MeasurementSessionResponseDTO startSessionFromQr(String deviceId, String rawQrData) {
-        // Làm sạch dữ liệu QR trước khi xử lý
         String cleanData = rawQrData.trim();
         String[] parts = cleanData.split("\\s*\\|\\s*");
-
-        System.out.println("Số phần tử sau khi tách: " + parts.length);
-        for (int i = 0; i < parts.length; i++) {
-            System.out.println("Phần tử " + i + ": " + parts[i]);
-        }
-
-        System.out.println("DEBUG: Dữ liệu QR sau khi trim: " + cleanData);
-        System.out.println("DEBUG: Số lượng phần tử tách được: " + parts.length);
 
         if (parts.length < 7) {
             throw new IllegalArgumentException("Định dạng mã QR CCCD không hợp lệ. Độ dài: " + parts.length);
         }
 
-        // TỰ ĐỘNG TẠO THIẾT BỊ NẾU CHƯA CÓ
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseGet(() -> {
                     Device demoDevice = new Device();
@@ -167,11 +154,10 @@ public class MeasurementSessionServiceImpl implements IMeasurementSessionService
             patient = patientOpt.get();
         }
 
-        // Tạo phiên đo
         MeasurementSession session = new MeasurementSession();
         session.setPatient(patient);
         session.setDevice(device);
-        session.setStatus(SessionStatus.Pending);
+        session.setStatus(SessionStatus.AwaitingStart);
         session = measurementSessionRepository.save(session);
 
         return new MeasurementSessionResponseDTO(
@@ -188,19 +174,19 @@ public class MeasurementSessionServiceImpl implements IMeasurementSessionService
     @Override
     @Transactional
     public MeasurementSessionResponseDTO initSessionForExistingPatient(String deviceId, Patient patient) {
-        // Tìm thiết bị
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new RuntimeException("Thiết bị không tồn tại: " + deviceId));
 
-        // Tạo phiên cân mới
         MeasurementSession session = new MeasurementSession();
         session.setPatient(patient);
         session.setDevice(device);
-        session.setStatus(vn.edu.fpt.sba.intellicare.enums.SessionStatus.Pending);
+        // Chờ bệnh nhân bấm "Tiến hành cân" ở màn xác nhận trước, KHÔNG cho
+        // cân nhận dữ liệu ngay - tránh chốt nhầm phiên nếu ai đó lỡ chạm
+        // cân trong lúc bệnh nhân còn đang đứng ở màn xác nhận danh tính.
+        session.setStatus(SessionStatus.AwaitingStart);
 
         session = measurementSessionRepository.save(session);
 
-        // Trả về DTO để Frontend hiển thị trạng thái chờ đo
         return new MeasurementSessionResponseDTO(
                 session.getSessionId(),
                 device.getDeviceId(),
@@ -208,7 +194,34 @@ public class MeasurementSessionServiceImpl implements IMeasurementSessionService
                 patient.getPatientId(),
                 patient.getFullName(),
                 session.getStatus().name(),
-                java.time.LocalDateTime.now(),
+                LocalDateTime.now(),
+                null);
+    }
+
+    @Override
+    @Transactional
+    public MeasurementSessionResponseDTO startWeighing(String deviceId) {
+        // Tìm đúng phiên MỚI NHẤT đang chờ xác nhận (AwaitingStart) của
+        // thiết bị này - đây là phiên bệnh nhân vừa quét CCCD, vừa bấm
+        // "Tiến hành cân" ở màn xác nhận.
+        MeasurementSession session = measurementSessionRepository
+                .findTopByDevice_DeviceIdAndStatusOrderByCreatedAtDesc(
+                        deviceId, SessionStatus.AwaitingStart)
+                .orElseThrow(() -> new RuntimeException(
+                        "Không tìm thấy phiên đang chờ xác nhận cho thiết bị: " + deviceId
+                                + " (có thể đã quá hạn hoặc chưa quét CCCD)"));
+
+        session.setStatus(SessionStatus.Pending);
+        session = measurementSessionRepository.save(session);
+
+        return new MeasurementSessionResponseDTO(
+                session.getSessionId(),
+                session.getDevice().getDeviceId(),
+                session.getDevice().getLocation(),
+                session.getPatient().getPatientId(),
+                session.getPatient().getFullName(),
+                session.getStatus().name(),
+                session.getCreatedAt(),
                 null);
     }
 }
