@@ -19,13 +19,14 @@ interface PatientDetailData {
   patientCode: string;
   fullName: string;
   phoneNumber: string;
+  email: string | null;
+  address: string | null;
   dob: string;
   faceImageUrl: string | null;
   weightLog: WeightLog[];
 }
 
 export default function StaffDashboard() {
-  // Format DD/MM/YYYY (luôn có số 0 phía trước)
   const formatDate = (dateInput: string | Date): string => {
     const d = new Date(dateInput);
     const day = String(d.getDate()).padStart(2, "0");
@@ -44,27 +45,20 @@ export default function StaffDashboard() {
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const PER_PAGE = 5;
+  const PER_PAGE = 8;
 
-  // Bộ lọc
   const [genderFilter, setGenderFilter] = useState<"ALL" | "Nam" | "Nữ">("ALL");
   const [minWeight, setMinWeight] = useState("");
   const [maxWeight, setMaxWeight] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  // State điều khiển trạng thái Popup & Hiệu ứng tương tác UI
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] =
     useState<PatientDetailData | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
 
-  const [isInputFocused, setIsInputFocused] = useState(false);
-  const [isLogsBtnHovered, setIsLogsBtnHovered] = useState(false);
-  const [isCloseHovered, setIsCloseHovered] = useState(false);
-
-  // TẢI DANH SÁCH BỆNH NHÂN ĐÃ ĐO (có ít nhất 1 lần cân) MỘT LẦN LÚC VÀO TRANG
   useEffect(() => {
     const fetchAllPatients = async () => {
       setIsLoadingList(true);
@@ -85,7 +79,6 @@ export default function StaffDashboard() {
     fetchAllPatients();
   }, []);
 
-  // Tính cân nặng lần đo GẦN NHẤT của 1 bệnh nhân (dùng để lọc theo range kg)
   const getLatestWeight = (logs: WeightLog[]): number | null => {
     if (!logs || logs.length === 0) return null;
     const sorted = [...logs].sort(
@@ -116,7 +109,7 @@ export default function StaffDashboard() {
     const matchDate =
       (!dateFrom && !dateTo) ||
       p.weightLog.some((log) => {
-        const logDate = log.measuredAt.slice(0, 10); // "YYYY-MM-DD"
+        const logDate = log.measuredAt.slice(0, 10);
         return (
           (!dateFrom || logDate >= dateFrom) && (!dateTo || logDate <= dateTo)
         );
@@ -131,7 +124,6 @@ export default function StaffDashboard() {
     page * PER_PAGE,
   );
 
-  // 2. KHÓA TRẠNG THÁI CUỘN MÀN HÌNH CHÍNH PHÍA SAU KHI MỞ MODAL
   useEffect(() => {
     if (isModalOpen) {
       document.body.style.overflow = "hidden";
@@ -164,7 +156,7 @@ export default function StaffDashboard() {
     setShowLogs(false);
   };
 
-  // Thuật toán kiểm tra rủi ro sức khỏe
+  // Thuật toán kiểm tra rủi ro sức khỏe (giữ nguyên, không đổi)
   const evaluateLogRisk = (targetLog: WeightLog, allLogs: WeightLog[]) => {
     const targetDate = new Date(targetLog.measuredAt);
     const oneWeekAgo = new Date(targetDate.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -182,7 +174,7 @@ export default function StaffDashboard() {
       if (logDate >= oneWeekAgo && weightDiff > 2) {
         return {
           isRisk: true,
-          msg: `Trọng lượng thay đổi bất thường (> 2kg trong 1 tuần so với ngày ${formattedLogDate})`,
+          msg: `Thay đổi hơn 2kg trong 1 tuần so với ${formattedLogDate}`,
         };
       }
 
@@ -191,7 +183,7 @@ export default function StaffDashboard() {
         if (weightDiff > fivePercentLimit) {
           return {
             isRisk: true,
-            msg: `Trọng lượng vượt ngưỡng an toàn (> 5% cơ thể trong 1 tháng so với ngày ${formattedLogDate})`,
+            msg: `Thay đổi quá 5% cân nặng trong 1 tháng so với ${formattedLogDate}`,
           };
         }
       }
@@ -212,24 +204,24 @@ export default function StaffDashboard() {
 
   return (
     <div style={styles.pageBackground}>
-      {/* THÀNH PHẦN 1: KHUNG TRA CỨU CHÍNH */}
       <div style={styles.container}>
-        <h2 style={styles.title}>QUẢN LÝ BỆNH NHÂN</h2>
+        <header style={styles.header}>
+          <div style={styles.eyebrow}>Danh sách bệnh nhân</div>
+          <h1 style={styles.pageTitle}>Quản lý bệnh nhân</h1>
+        </header>
 
-        <input
-          style={{
-            ...styles.inputField,
-            ...(isInputFocused ? styles.inputFieldFocus : {}),
-          }}
-          placeholder="🔍 Tìm theo tên hoặc số điện thoại..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          onFocus={() => setIsInputFocused(true)}
-          onBlur={() => setIsInputFocused(false)}
-        />
+        {/* ===== THANH TRA CỨU + LỌC ===== */}
+        <div style={styles.searchBar}>
+          <input
+            style={styles.searchInput}
+            placeholder="Tìm theo tên hoặc số điện thoại"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
 
         <div style={styles.filterRow}>
           <select
@@ -265,7 +257,6 @@ export default function StaffDashboard() {
               setPage(1);
             }}
           />
-
           <input
             style={styles.filterDateInput}
             type="date"
@@ -275,7 +266,7 @@ export default function StaffDashboard() {
               setPage(1);
             }}
           />
-          <span style={{ color: "#94a3b8", fontSize: "13px" }}>→</span>
+          <span style={styles.filterArrow}>→</span>
           <input
             style={styles.filterDateInput}
             type="date"
@@ -287,43 +278,56 @@ export default function StaffDashboard() {
           />
         </div>
 
+        {/* ===== BẢNG DỮ LIỆU ===== */}
         {isLoadingList ? (
-          <p style={styles.errorResultText}>Đang tải danh sách...</p>
+          <p style={styles.stateText}>Đang tải danh sách…</p>
         ) : (
-          <div style={{ marginTop: "24px" }}>
-            {pagedPatients.map((p) => (
-              <div
-                key={p.patientId}
-                style={{ ...styles.patientCard, cursor: "pointer" }}
-                onClick={() => handleOpenModal(p.patientId)}
-              >
-                <div>
-                  <div style={styles.patientName}>{p.fullName}</div>
-                  <div style={styles.patientPhone}>
-                    Liên hệ: {p.phoneNumber}
-                    {p.gender ? ` · ${p.gender}` : ""}
-                    {getLatestWeight(p.weightLog) !== null
-                      ? ` · ${getLatestWeight(p.weightLog)} kg (gần nhất)`
-                      : ""}
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenModal(p.patientId);
-                  }}
-                  style={styles.btnViewProfile}
-                >
-                  XEM HỒ SƠ
-                </button>
+          <>
+            <div style={styles.table}>
+              <div style={styles.tableHeadRow}>
+                <span>Bệnh nhân</span>
+                <span>Cân nặng gần nhất</span>
               </div>
-            ))}
 
-            {filteredPatients.length === 0 && (
-              <p style={styles.errorResultText}>
-                📭 Không tìm thấy hồ sơ bệnh nhân phù hợp.
-              </p>
-            )}
+              {pagedPatients.map((p) => {
+                const latest = getLatestWeight(p.weightLog);
+                return (
+                  <div
+                    key={p.patientId}
+                    style={styles.tableRow}
+                    onClick={() => handleOpenModal(p.patientId)}
+                  >
+                    <div style={styles.rowMainCol}>
+                      <span style={styles.rowName}>{p.fullName}</span>
+                      <span style={styles.rowMeta}>
+                        {p.phoneNumber}
+                        {p.gender ? ` · ${p.gender}` : ""}
+                      </span>
+                    </div>
+                    <div style={styles.rowRightCol}>
+                      <span style={styles.rowWeight}>
+                        {latest !== null ? `${latest} kg` : "—"}
+                      </span>
+                      <button
+                        style={styles.rowButton}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenModal(p.patientId);
+                        }}
+                      >
+                        Xem hồ sơ
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {filteredPatients.length === 0 && (
+                <p style={styles.stateText}>
+                  Không tìm thấy hồ sơ bệnh nhân phù hợp.
+                </p>
+              )}
+            </div>
 
             {filteredPatients.length > PER_PAGE && (
               <div style={styles.paginationRow}>
@@ -352,208 +356,152 @@ export default function StaffDashboard() {
                 </button>
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
-      {/* THÀNH PHẦN 2: MODAL LỚP PHỦ (ĐÃ ĐƯỢC ĐƯA RA NGOÀI ĐỂ FIXED TOÀN VIEWPORT CHUẨN 100%) */}
+      {/* ===== MODAL CHI TIẾT - dùng lại đúng pattern "ô đọc số + bảng
+          lịch sử" đã thiết lập ở Profile.tsx, giữ nhất quán hệ thống ===== */}
       {isModalOpen && (
         <div style={styles.modalOverlay} onClick={handleCloseModal}>
-          <div
-            style={styles.modalContentSplit}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Nút Đóng */}
-            <button
-              style={{
-                ...styles.modalCloseBtn,
-                ...(isCloseHovered ? styles.modalCloseBtnHover : {}),
-              }}
-              onClick={handleCloseModal}
-              onMouseEnter={() => setIsCloseHovered(true)}
-              onMouseLeave={() => setIsCloseHovered(false)}
-            >
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <button style={styles.modalCloseBtn} onClick={handleCloseModal}>
               &times;
             </button>
 
             {loadingDetail ? (
               <div style={styles.loadingWrapper}>
                 <div style={styles.spinner}></div>
-                <h3 style={styles.loadingText}>
-                  Đang truy xuất hồ sơ y tế từ thiết bị IoT...
-                </h3>
+                <p style={styles.loadingText}>Đang tải hồ sơ…</p>
               </div>
             ) : selectedPatient ? (
               <>
-                {/* PANEL TRÁI: Nội dung bệnh án & Lịch sử cân đo */}
-                <div style={styles.modalLeftInfo}>
-                  <h2 style={styles.modalLeftTitle}>THÔNG TIN BỆNH ÁN</h2>
-
-                  <div style={styles.infoSection}>
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Mã số định danh</span>
-                      <span style={styles.infoValue}>
-                        {selectedPatient.patientCode}
-                      </span>
+                <header style={styles.modalHeader}>
+                  {selectedPatient.faceImageUrl ? (
+                    <img
+                      src={selectedPatient.faceImageUrl}
+                      alt=""
+                      style={styles.avatar}
+                    />
+                  ) : (
+                    <div style={styles.avatarPlaceholder}>
+                      {selectedPatient.fullName.charAt(0)}
                     </div>
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Họ và tên</span>
-                      <span style={styles.infoValue}>
-                        {selectedPatient.fullName}
-                      </span>
+                  )}
+                  <div>
+                    <div style={styles.eyebrow}>
+                      {selectedPatient.patientCode}
                     </div>
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Số điện thoại</span>
-                      <span style={styles.infoValue}>
-                        {selectedPatient.phoneNumber}
-                      </span>
+                    <h2 style={styles.modalPatientName}>
+                      {selectedPatient.fullName}
+                    </h2>
+                    <div style={styles.modalMetaRowSecondary}>
+                      Số điện thoại: {selectedPatient.phoneNumber}
                     </div>
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Ngày tháng năm sinh</span>
-                      <span style={styles.infoValue}>
-                        {selectedPatient.dob}
-                      </span>
+                    {selectedPatient.email && (
+                      <div style={styles.modalMetaRowSecondary}>
+                        Email: {selectedPatient.email}
+                      </div>
+                    )}
+                    <div style={styles.modalMetaRowSecondary}>
+                      Ngày tháng năm sinh: {formatDate(selectedPatient.dob)}
                     </div>
-                  </div>
-
-                  <h3 style={styles.subTitleSection}>
-                    TRẠNG THÁI LÂM SÀNG GẦN NHẤT
-                  </h3>
-
-                  <div
-                    style={{
-                      ...styles.riskWidget,
-                      ...(latestRiskStatus.isRisk
-                        ? styles.riskWidgetDanger
-                        : styles.riskWidgetSafe),
-                    }}
-                  >
-                    <div style={styles.riskWidgetHeader}>
-                      <span
-                        style={{
-                          ...styles.riskLabel,
-                          color: latestRiskStatus.isRisk
-                            ? "#b91c1c"
-                            : "#0f766e",
-                        }}
-                      >
-                        {latestRiskStatus.isRisk
-                          ? "⚠️ CẢNH BÁO:"
-                          : "🩺 CHỈ SỐ GẦN NHẤT:"}
-                      </span>
-                      <span
-                        style={{
-                          ...styles.riskWeightValue,
-                          color: latestRiskStatus.isRisk
-                            ? "#b91c1c"
-                            : "#0d9488",
-                        }}
-                      >
-                        {latestLog
-                          ? `${latestLog.weightKg} kg`
-                          : "Chưa có dữ liệu"}
-                      </span>
-                    </div>
-                    {latestRiskStatus.isRisk && (
-                      <div style={styles.riskMessage}>
-                        {latestRiskStatus.msg}
+                    {selectedPatient.address && (
+                      <div style={styles.modalMetaRowSecondary}>
+                        Địa chỉ: {selectedPatient.address}
                       </div>
                     )}
                   </div>
+                </header>
 
-                  {sortedLogs.length > 0 ? (
-                    <>
-                      <button
-                        onClick={() => setShowLogs(!showLogs)}
-                        style={{
-                          ...styles.btnHistoryToggle,
-                          ...(isLogsBtnHovered
-                            ? styles.btnHistoryToggleHover
-                            : {}),
-                        }}
-                        onMouseEnter={() => setIsLogsBtnHovered(true)}
-                        onMouseLeave={() => setIsLogsBtnHovered(false)}
-                      >
-                        {showLogs
-                          ? "🔒 ẨN CHI TIẾT LỊCH SỬ"
-                          : "📊 XEM TOÀN BỘ LỊCH SỬ CÂN NẶNG"}
-                      </button>
-
-                      {showLogs && (
-                        <div style={styles.timelineContainer}>
-                          {sortedLogs.map((log: WeightLog) => {
-                            const logRisk = evaluateLogRisk(log, sortedLogs);
-                            return (
-                              <div
-                                key={log.logId}
-                                style={{
-                                  ...styles.timelineCard,
-                                  ...(logRisk.isRisk
-                                    ? styles.timelineCardDanger
-                                    : styles.timelineCardNormal),
-                                }}
-                              >
-                                <div style={styles.timelineTimeBlock}>
-                                  <span
-                                    style={{
-                                      color: logRisk.isRisk
-                                        ? "#991b1b"
-                                        : "#334155",
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    {formatDateTime(log.measuredAt)}
-                                  </span>
-                                  {logRisk.isRisk && (
-                                    <span style={styles.dangerTag}>
-                                      Nguy cơ
-                                    </span>
-                                  )}
-                                </div>
-                                <div
-                                  style={{
-                                    ...styles.timelineWeight,
-                                    color: logRisk.isRisk
-                                      ? "#dc2626"
-                                      : "#0f766e",
-                                  }}
-                                >
-                                  {log.weightKg} kg
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p style={styles.noDataText}>
-                      ℹ️ Chưa ghi nhận dữ liệu đo đạc nào từ hệ thống trạm cân.
-                    </p>
+                <div
+                  style={{
+                    ...styles.readout,
+                    borderTopColor: latestRiskStatus.isRisk
+                      ? COLORS.risk
+                      : COLORS.safe,
+                  }}
+                >
+                  <div style={styles.readoutLabel}>
+                    {latestRiskStatus.isRisk
+                      ? "Cảnh báo chỉ số bất thường"
+                      : "Chỉ số gần nhất"}
+                  </div>
+                  <div
+                    style={{
+                      ...styles.readoutValue,
+                      color: latestRiskStatus.isRisk ? COLORS.risk : COLORS.ink,
+                    }}
+                  >
+                    {latestLog ? latestLog.weightKg : "—"}
+                    <span style={styles.readoutUnit}>kg</span>
+                  </div>
+                  {latestRiskStatus.isRisk && (
+                    <p style={styles.riskMessage}>{latestRiskStatus.msg}</p>
                   )}
                 </div>
 
-                {/* PANEL PHẢI: Ảnh đại diện kéo dài đồng bộ */}
-                <div
-                  style={{
-                    ...styles.modalRightImage,
-                    ...(selectedPatient.faceImageUrl
-                      ? {
-                          backgroundImage: `url(${selectedPatient.faceImageUrl})`,
-                        }
-                      : styles.modalRightImagePlaceholder),
-                  }}
-                >
-                  {!selectedPatient.faceImageUrl && (
-                    <span style={{ fontSize: "64px" }}>👤</span>
+                <div style={styles.historySection}>
+                  <button
+                    onClick={() => setShowLogs(!showLogs)}
+                    style={styles.toggleLink}
+                  >
+                    {showLogs ? "Ẩn lịch sử đo" : "Xem toàn bộ lịch sử đo"}
+                    <span style={styles.toggleChevron}>
+                      {showLogs ? "︿" : "﹀"}
+                    </span>
+                  </button>
+
+                  {showLogs && (
+                    <div style={styles.historyList}>
+                      {sortedLogs.length === 0 ? (
+                        <p style={styles.stateText}>
+                          Chưa có dữ liệu đo nào được ghi nhận.
+                        </p>
+                      ) : (
+                        <>
+                          <div style={styles.historyHeadRow}>
+                            <span>Thời điểm đo</span>
+                            <span>Cân nặng</span>
+                          </div>
+                          {sortedLogs.map((log) => {
+                            const logRisk = evaluateLogRisk(log, sortedLogs);
+                            return (
+                              <div key={log.logId} style={styles.historyRow}>
+                                <div style={styles.historyDateCol}>
+                                  <span style={styles.historyDate}>
+                                    {formatDateTime(log.measuredAt)}
+                                  </span>
+                                  {logRisk.isRisk && (
+                                    <span style={styles.inlineRiskTag}>
+                                      Nguy cơ · {logRisk.msg}
+                                    </span>
+                                  )}
+                                </div>
+                                <span
+                                  style={{
+                                    ...styles.historyWeight,
+                                    color: logRisk.isRisk
+                                      ? COLORS.risk
+                                      : COLORS.ink,
+                                  }}
+                                >
+                                  {log.weightKg} kg
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
               </>
             ) : (
               <div style={styles.loadingWrapper}>
-                <h3 style={{ color: "#b91c1c" }}>
-                  Không tìm thấy dữ liệu hồ sơ hợp lệ!
-                </h3>
+                <p style={{ color: COLORS.risk }}>
+                  Không tìm thấy dữ liệu hồ sơ hợp lệ.
+                </p>
               </div>
             )}
           </div>
@@ -563,408 +511,418 @@ export default function StaffDashboard() {
   );
 }
 
-// --- CSS STYLES ĐÃ ĐƯỢC TINH CHỈNH ĐỂ TRÁNH TRÙNG LẶP SCROLLBARS ---
+// ============================================================
+// TOKENS - dùng chung bảng màu lâm sàng với Profile.tsx/Scanner.tsx
+// ============================================================
+const COLORS = {
+  ink: "#12211A",
+  paper: "#F5F6F3",
+  paperRaised: "#FFFFFF",
+  safe: "#0B6E4F",
+  risk: "#9A3324",
+  muted: "#6B7268",
+  hairline: "#D8DAD3",
+};
+
+const FONT_SANS =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+const FONT_NUMBER =
+  "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
 const styles: { [key: string]: React.CSSProperties } = {
   pageBackground: {
     minHeight: "calc(100vh - 80px)",
-    background: "var(--bg)",
+    background: COLORS.paper,
     display: "flex",
     justifyContent: "center",
-    alignItems: "flex-start",
-    padding: "50px 20px",
-    fontFamily: "'Segoe UI', Roboto, sans-serif",
+    padding: "48px 20px",
+    fontFamily: FONT_SANS,
     boxSizing: "border-box",
-    position: "relative",
   },
   container: {
-    background: "rgba(255, 255, 255, 0.92)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
     width: "100%",
-    maxWidth: "850px",
-    borderRadius: "32px",
-    padding: "40px",
-    boxSizing: "border-box",
-    boxShadow: "0 20px 50px -12px rgba(15, 23, 42, 0.08)",
-    border: "1px solid rgba(255, 255, 255, 0.6)",
+    maxWidth: "760px",
   },
-  title: {
+  header: {
+    borderBottom: `1px solid ${COLORS.hairline}`,
+    paddingBottom: "18px",
+    marginBottom: "24px",
+  },
+  eyebrow: {
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    marginBottom: "6px",
+  },
+  pageTitle: {
     fontSize: "26px",
-    fontWeight: 900,
-    margin: "0 0 24px 0",
-    letterSpacing: "0.5px",
-    background: "linear-gradient(135deg, #0f766e 0%, #059669 100%)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    textAlign: "center",
+    fontWeight: 700,
+    color: COLORS.ink,
+    margin: 0,
   },
-  inputField: {
+  searchBar: {
+    marginBottom: "12px",
+  },
+  searchInput: {
     width: "100%",
-    padding: "16px 20px",
+    padding: "12px 16px",
     fontSize: "15px",
-    fontWeight: 600,
-    borderRadius: "16px",
-    border: "2px solid #cbd5e1",
-    background: "#ffffff",
-    color: "#1e293b",
+    borderRadius: "8px",
+    border: `1px solid ${COLORS.hairline}`,
+    background: COLORS.paperRaised,
+    color: COLORS.ink,
     outline: "none",
     boxSizing: "border-box",
-    transition: "all 0.2s ease",
-  },
-  inputFieldFocus: {
-    borderColor: "#0d9488",
-    boxShadow: "0 0 0 4px rgba(13, 148, 136, 0.15)",
+    fontFamily: FONT_SANS,
   },
   filterRow: {
     display: "flex",
-    gap: "10px",
-    marginTop: "14px",
+    gap: "8px",
     flexWrap: "wrap",
     alignItems: "center",
+    marginBottom: "28px",
   },
   filterSelect: {
     flex: "1 1 150px",
-    padding: "10px 12px",
-    borderRadius: "10px",
-    border: "1px solid #e2e8f0",
+    padding: "9px 10px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.hairline}`,
     fontSize: "13px",
-    fontWeight: 600,
-    color: "#334155",
-    backgroundColor: "#ffffff",
+    color: COLORS.ink,
+    background: COLORS.paperRaised,
     outline: "none",
-    cursor: "pointer",
+    fontFamily: FONT_SANS,
   },
   filterNumberInput: {
-    flex: "1 1 100px",
-    padding: "10px 12px",
-    borderRadius: "10px",
-    border: "1px solid #e2e8f0",
+    flex: "1 1 90px",
+    padding: "9px 10px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.hairline}`,
     fontSize: "13px",
     outline: "none",
     boxSizing: "border-box",
+    fontFamily: FONT_SANS,
   },
   filterDateInput: {
-    flex: "1 1 140px",
-    padding: "9px 10px",
-    borderRadius: "10px",
-    border: "1px solid #e2e8f0",
+    flex: "1 1 130px",
+    padding: "8px 10px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.hairline}`,
     fontSize: "13px",
     outline: "none",
     boxSizing: "border-box",
+    fontFamily: FONT_SANS,
+  },
+  filterArrow: {
+    color: COLORS.muted,
+    fontSize: "13px",
+  },
+  // ===== BẢNG DỮ LIỆU =====
+  table: {
+    borderTop: `1px solid ${COLORS.hairline}`,
+  },
+  tableHeadRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    padding: "10px 0",
+  },
+  tableRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "16px 0",
+    borderBottom: `1px solid ${COLORS.hairline}`,
+    cursor: "pointer",
+    gap: "16px",
+  },
+  rowMainCol: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "3px",
+    minWidth: 0,
+  },
+  rowName: {
+    fontSize: "16px",
+    fontWeight: 600,
+    color: COLORS.ink,
+  },
+  rowMeta: {
+    fontSize: "13px",
+    color: COLORS.muted,
+  },
+  rowRightCol: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    flexShrink: 0,
+  },
+  rowWeight: {
+    fontFamily: FONT_NUMBER,
+    fontSize: "17px",
+    fontWeight: 700,
+    color: COLORS.ink,
+    fontVariantNumeric: "tabular-nums",
+    minWidth: "64px",
+    textAlign: "right",
+  },
+  rowButton: {
+    padding: "8px 16px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.ink}`,
+    background: "transparent",
+    color: COLORS.ink,
+    fontSize: "13px",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: FONT_SANS,
+    whiteSpace: "nowrap",
+  },
+  stateText: {
+    textAlign: "center",
+    color: COLORS.muted,
+    fontSize: "15px",
+    padding: "32px 0",
   },
   paginationRow: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    gap: "16px",
-    marginTop: "20px",
-    paddingTop: "20px",
-    borderTop: "1px solid #e2e8f0",
-  },
-  pageBtn: {
-    padding: "8px 16px",
-    borderRadius: "8px",
-    border: "1px solid #0d9488",
-    background: "#ffffff",
-    color: "#0d9488",
-    fontSize: "13px",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  pageBtnDisabled: {
-    borderColor: "#e2e8f0",
-    color: "#cbd5e1",
-    cursor: "not-allowed",
-  },
-  pageIndicator: {
-    fontSize: "13px",
-    fontWeight: 700,
-    color: "#475569",
-  },
-  emptyStateContainer: {
-    marginTop: "40px",
-    textAlign: "center",
-  },
-  emptyStateText: {
-    fontSize: "15px",
-    fontWeight: 600,
-    color: "#64748b",
-    fontStyle: "italic",
-  },
-  patientCard: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    background: "#ffffff",
-    padding: "20px 24px",
-    borderRadius: "20px",
-    marginBottom: "16px",
-    border: "1px solid #e2e8f0",
-    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.01)",
-    boxSizing: "border-box",
-  },
-  patientName: {
-    fontSize: "18px",
-    fontWeight: 700,
-    color: "#0f172a",
-  },
-  patientPhone: {
-    fontSize: "14px",
-    fontWeight: 600,
-    color: "#64748b",
-    marginTop: "4px",
-  },
-  btnViewProfile: {
-    background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)",
-    color: "#ffffff",
-    fontWeight: 800,
-    fontSize: "13px",
-    padding: "12px 24px",
-    borderRadius: "12px",
-    border: "none",
-    cursor: "pointer",
-    fontFamily: "'Segoe UI', Roboto, sans-serif",
-    boxShadow: "0 4px 12px rgba(13, 148, 136, 0.15)",
-    transition: "all 0.2s ease",
-  },
-  errorResultText: {
-    textAlign: "center",
-    fontWeight: 700,
-    fontSize: "15px",
-    color: "#ef4444",
+    gap: "20px",
     marginTop: "24px",
   },
-  // HOÀN TOÀN GIẢI PHÓNG ĐỘC LẬP TẠI ĐÂY:
+  pageBtn: {
+    padding: "6px 14px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.hairline}`,
+    background: COLORS.paperRaised,
+    color: COLORS.ink,
+    fontSize: "13px",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: FONT_SANS,
+  },
+  pageBtnDisabled: {
+    color: COLORS.muted,
+    cursor: "not-allowed",
+    opacity: 0.5,
+  },
+  pageIndicator: {
+    fontFamily: FONT_NUMBER,
+    fontSize: "13px",
+    color: COLORS.muted,
+  },
+
+  // ===== MODAL =====
   modalOverlay: {
     position: "fixed",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    background: "rgba(15, 23, 42, 0.6)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
+    background: "rgba(18, 33, 26, 0.45)",
     display: "flex",
     justifyContent: "center",
     alignItems: "flex-start",
-    overflowY: "auto", // Cho phép cuộn mượt lớp nền khi modal dài ra
-    zIndex: 9999, // Đảm bảo đè lên toàn bộ thanh điều hướng header của app
+    overflowY: "auto",
+    zIndex: 9999,
     padding: "60px 20px",
     boxSizing: "border-box",
   },
-  modalContentSplit: {
-    background: "#ffffff",
+  modalContent: {
+    background: COLORS.paperRaised,
     width: "100%",
-    maxWidth: "900px",
-    height: "auto",
-    borderRadius: "28px",
-    display: "flex",
+    maxWidth: "600px",
+    borderRadius: "12px",
+    padding: "36px",
     position: "relative",
-    overflow: "hidden",
-    boxShadow: "0 25px 50px -12px rgba(0,0,0,0.3)",
     boxSizing: "border-box",
   },
   modalCloseBtn: {
     position: "absolute",
     top: "20px",
     right: "20px",
-    background: "rgba(15, 23, 42, 0.05)",
+    background: "transparent",
     border: "none",
-    fontSize: "28px",
-    width: "40px",
-    height: "40px",
+    fontSize: "24px",
+    color: COLORS.muted,
+    cursor: "pointer",
+    lineHeight: 1,
+  },
+  modalHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    borderBottom: `1px solid ${COLORS.hairline}`,
+    paddingBottom: "24px",
+    marginBottom: "24px",
+  },
+  avatar: {
+    width: "56px",
+    height: "56px",
     borderRadius: "50%",
+    objectFit: "cover",
+    flexShrink: 0,
+  },
+  avatarPlaceholder: {
+    width: "56px",
+    height: "56px",
+    borderRadius: "50%",
+    background: COLORS.paper,
+    border: `1px solid ${COLORS.hairline}`,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "#64748b",
-    cursor: "pointer",
-    zIndex: 10,
-    transition: "all 0.2s ease",
-  },
-  modalCloseBtnHover: {
-    background: "#fee2e2",
-    color: "#ef4444",
-  },
-  modalLeftInfo: {
-    flex: "0 0 60%",
-    padding: "40px",
-    boxSizing: "border-box",
-    display: "flex",
-    flexDirection: "column",
-  },
-  modalLeftTitle: {
-    fontSize: "22px",
-    fontWeight: 900,
-    margin: "0 0 20px 0",
-    background: "linear-gradient(135deg, #0f766e 0%, #059669 100%)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-  },
-  infoSection: {
-    background: "#f8fafc",
-    borderRadius: "16px",
-    padding: "16px 20px",
-    border: "1px solid #edf2f7",
-  },
-  infoRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "10px 0",
-    borderBottom: "1px solid #edf2f7",
-  },
-  infoLabel: {
-    fontSize: "13px",
+    fontSize: "20px",
     fontWeight: 700,
-    color: "#64748b",
-    textTransform: "uppercase",
+    color: COLORS.muted,
+    flexShrink: 0,
   },
-  infoValue: {
+  modalPatientName: {
+    fontSize: "22px",
+    fontWeight: 700,
+    color: COLORS.ink,
+    margin: "0 0 6px 0",
+  },
+  modalMetaRow: {
     fontSize: "14px",
-    fontWeight: 600,
-    color: "#0f172a",
-  },
-  subTitleSection: {
-    fontSize: "14px",
-    fontWeight: 800,
-    color: "#334155",
-    letterSpacing: "0.5px",
-    marginTop: "24px",
-    marginBottom: "12px",
-    borderBottom: "2px solid #f1f5f9",
-    paddingBottom: "6px",
-  },
-  riskWidget: {
-    padding: "16px",
-    borderRadius: "16px",
-    marginBottom: "16px",
-    boxSizing: "border-box",
-  },
-  riskWidgetSafe: {
-    background: "linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)",
-    border: "1px solid rgba(13, 148, 136, 0.2)",
-  },
-  riskWidgetDanger: {
-    background: "linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)",
-    border: "2px solid #ef4444",
-  },
-  riskWidgetHeader: {
+    color: COLORS.muted,
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    width: "100%",
-  },
-  riskLabel: {
-    fontSize: "13px",
-    fontWeight: 800,
-  },
-  riskWeightValue: {
-    fontSize: "26px",
-    fontWeight: 900,
-  },
-  riskMessage: {
-    color: "#991b1b",
-    fontSize: "13px",
-    marginTop: "8px",
-    fontWeight: 600,
-    fontStyle: "italic",
-    lineHeight: 1.4,
-  },
-  btnHistoryToggle: {
-    width: "100%",
-    padding: "12px",
-    background: "transparent",
-    border: "2px solid #0d9488",
-    color: "#0d9488",
-    borderRadius: "12px",
-    fontSize: "13px",
-    fontWeight: 800,
-    fontFamily: "'Segoe UI', Roboto, sans-serif",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-  },
-  btnHistoryToggleHover: {
-    background: "rgba(13, 148, 136, 0.05)",
-  },
-  timelineContainer: {
-    marginTop: "12px",
-  },
-  timelineCard: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "10px 16px",
-    borderRadius: "10px",
-    marginBottom: "8px",
-    boxSizing: "border-box",
-  },
-  timelineCardNormal: {
-    background: "#f1f5f9",
-    borderLeft: "4px solid #3b82f6",
-  },
-  timelineCardDanger: {
-    background: "#fef2f2",
-    borderLeft: "4px solid #ef4444",
-    borderTop: "1px solid #fee2e2",
-    borderBottom: "1px solid #fee2e2",
-    borderRight: "1px solid #fee2e2",
-  },
-  timelineTimeBlock: {
-    fontSize: "13px",
-    display: "flex",
-    alignItems: "center",
     gap: "8px",
   },
-  dangerTag: {
-    fontSize: "11px",
-    padding: "2px 6px",
-    backgroundColor: "#ef4444",
-    color: "#ffffff",
-    borderRadius: "4px",
+  modalMetaRowSecondary: {
+    fontSize: "14px",
+    color: COLORS.muted,
+    marginTop: "4px",
+  },
+  metaDivider: {
+    color: COLORS.hairline,
+  },
+  readout: {
+    background: COLORS.paper,
+    border: `1px solid ${COLORS.hairline}`,
+    borderTop: "3px solid",
+    borderRadius: "8px",
+    padding: "22px 24px",
+    marginBottom: "24px",
+    textAlign: "center",
+  },
+  readoutLabel: {
+    fontSize: "12px",
     fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    marginBottom: "8px",
   },
-  timelineWeight: {
-    fontSize: "16px",
-    fontWeight: 800,
+  readoutValue: {
+    fontFamily: FONT_NUMBER,
+    fontSize: "44px",
+    fontWeight: 700,
+    lineHeight: 1,
+    fontVariantNumeric: "tabular-nums",
   },
-  modalRightImage: {
-    flex: "0 0 40%",
-    backgroundPosition: "center",
-    backgroundSize: "cover",
-    backgroundRepeat: "no-repeat",
-    position: "relative",
+  readoutUnit: {
+    fontSize: "18px",
+    fontWeight: 600,
+    marginLeft: "6px",
+    color: COLORS.muted,
   },
-  modalRightImagePlaceholder: {
-    background: "#f1f5f9",
+  riskMessage: {
+    fontSize: "14px",
+    color: COLORS.risk,
+    marginTop: "12px",
+    marginBottom: 0,
+    lineHeight: 1.5,
+  },
+  historySection: {},
+  toggleLink: {
+    background: "none",
+    border: "none",
+    padding: 0,
+    fontFamily: FONT_SANS,
+    fontSize: "15px",
+    fontWeight: 600,
+    color: COLORS.safe,
+    cursor: "pointer",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
+    gap: "6px",
   },
-  noDataText: {
-    fontStyle: "italic",
-    color: "#64748b",
-    textAlign: "center",
-    fontSize: "13px",
+  toggleChevron: {
+    fontSize: "12px",
+  },
+  historyList: {
+    marginTop: "16px",
+    maxHeight: "320px",
+    overflowY: "auto",
+  },
+  historyHeadRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    paddingBottom: "10px",
+    borderBottom: `1px solid ${COLORS.hairline}`,
+  },
+  historyRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "16px",
+    padding: "12px 0",
+    borderBottom: `1px solid ${COLORS.hairline}`,
+  },
+  historyDateCol: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+    minWidth: 0,
+  },
+  historyDate: {
+    fontFamily: FONT_NUMBER,
+    fontSize: "14px",
+    color: COLORS.ink,
+    fontWeight: 600,
+  },
+  inlineRiskTag: {
+    fontSize: "12px",
+    color: COLORS.risk,
+    marginTop: "2px",
+  },
+  historyWeight: {
+    fontFamily: FONT_NUMBER,
+    fontSize: "16px",
+    fontWeight: 700,
+    fontVariantNumeric: "tabular-nums",
+    whiteSpace: "nowrap",
   },
   loadingWrapper: {
-    width: "100%",
-    padding: "60px",
+    padding: "60px 20px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
   },
   loadingText: {
-    color: "#0f766e",
-    fontSize: "16px",
-    fontWeight: 700,
-    marginTop: "16px",
+    color: COLORS.muted,
+    fontSize: "14px",
+    marginTop: "12px",
   },
   spinner: {
-    width: "28px",
-    height: "28px",
-    border: "3px solid #e2e8f0",
-    borderTop: "3px solid #0d9488",
+    width: "26px",
+    height: "26px",
+    border: `3px solid ${COLORS.hairline}`,
+    borderTop: `3px solid ${COLORS.safe}`,
     borderRadius: "50%",
     animation: "spin 1s linear infinite",
   },

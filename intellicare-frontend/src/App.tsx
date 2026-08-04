@@ -9,7 +9,6 @@ import StaffDashboard from "./pages/StaffDashboard";
 import StaffManagement from "./pages/StaffManagement";
 import PatientManagement from "./pages/PatientManagement";
 import AdminDashboard from "./pages/AdminDashboard";
-import PatientDetail from "./pages/PatientDetail";
 import PatientActivation from "./pages/PatientActivation";
 import ForgotPassword from "./pages/ForgotPassword";
 
@@ -86,16 +85,6 @@ function WebApp() {
           element={
             isAuthenticated && user?.role !== "PATIENT" ? (
               <StaffDashboard />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/patient-detail/:id"
-          element={
-            isAuthenticated && user?.role !== "PATIENT" ? (
-              <PatientDetail />
             ) : (
               <Navigate to="/login" replace />
             )

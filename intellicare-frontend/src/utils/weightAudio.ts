@@ -114,6 +114,21 @@ function getAudioContext(): AudioContext {
   return audioContext;
 }
 
+/**
+ * "Mở khóa" AudioContext - PHẢI gọi hàm này trực tiếp bên trong 1 sự kiện
+ * click/tap thật của người dùng (không phải trong setInterval/setTimeout/
+ * callback bất đồng bộ khác). Trình duyệt (Chrome/Safari) chặn phát audio
+ * tự động nếu AudioContext chưa từng được khởi động/resume từ 1 tương tác
+ * trực tiếp - gọi trước ở đây để lần phát audio TỰ ĐỘNG sau này (từ trong
+ * vòng lặp polling kết quả cân) không bị chặn.
+ */
+export function unlockAudio(): void {
+  const ctx = getAudioContext();
+  if (ctx.state === "suspended") {
+    ctx.resume().catch(() => {});
+  }
+}
+
 /** Tải + giải mã 1 file MP3, có cache lại (số/từ lặp lại không cần tải lại) */
 async function loadBuffer(name: string): Promise<AudioBuffer> {
   const cached = bufferCache.get(name);

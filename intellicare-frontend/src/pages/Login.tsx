@@ -16,8 +16,6 @@ const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
-  // Modal nhắc kích hoạt tài khoản khi bệnh nhân cố đăng nhập mà đăng nhập lỗi
-  // (phòng trường hợp họ phớt lờ dòng link "Kích hoạt tài khoản" phía dưới form)
   const [showActivateModal, setShowActivateModal] = useState(false);
 
   if (isAuthenticated) {
@@ -49,12 +47,9 @@ const Login: React.FC = () => {
       const backendMsg = error.response?.data?.message;
 
       if (loginType === "patient" && errorCode === "NOT_ACTIVATED") {
-        // Chỉ hiện Modal đúng lúc tài khoản thật sự chưa kích hoạt,
-        // không làm phiền người dùng khi họ chỉ đơn giản gõ sai mật khẩu.
         setErrorMsg(backendMsg || "Tài khoản chưa được kích hoạt.");
         setShowActivateModal(true);
       } else if (errorCode === "TOO_MANY_ATTEMPTS") {
-        // Bị rate limit do sai quá nhiều lần liên tiếp - không phải lỗi sai TK/MK
         setErrorMsg(
           backendMsg ||
             "Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau ít phút.",
@@ -64,11 +59,8 @@ const Login: React.FC = () => {
           backendMsg || "Tài khoản đã bị khóa. Vui lòng liên hệ hỗ trợ!",
         );
       } else if (errorCode === "INVALID_CREDENTIALS") {
-        // Gộp chung "không tìm thấy TK" + "sai mật khẩu" -> chống dò tài khoản
         setErrorMsg("Tài khoản hoặc mật khẩu không chính xác!");
       } else {
-        // /staff/login chưa trả errorCode (chưa sửa BE cho nhánh này),
-        // nên giữ message chung như cũ cho tab Nhân viên.
         setErrorMsg("Tài khoản hoặc mật khẩu không chính xác!");
       }
     } finally {
@@ -80,7 +72,7 @@ const Login: React.FC = () => {
     <div style={styles.wrapper}>
       <div style={styles.card}>
         <div style={styles.brandSection}>
-          <h2 style={styles.brandTitle}>INTELLICARE</h2>
+          <h1 style={styles.brandTitle}>Đăng nhập tài khoản</h1>
         </div>
 
         <div style={styles.tabContainer}>
@@ -91,7 +83,7 @@ const Login: React.FC = () => {
             }}
             onClick={() => setLoginType("patient")}
           >
-            👤 Bệnh nhân
+            Bệnh nhân
           </button>
           <button
             style={{
@@ -100,24 +92,22 @@ const Login: React.FC = () => {
             }}
             onClick={() => setLoginType("staff")}
           >
-            🩺 Nhân viên
+            Nhân viên
           </button>
         </div>
 
         <form onSubmit={handleLogin}>
-          <div style={styles.inputGroup}>
-            <input
-              style={styles.inputField}
-              placeholder={
-                loginType === "staff"
-                  ? "Tài khoản đăng nhập"
-                  : "Số điện thoại hoặc Email..."
-              }
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              required
-            />
-          </div>
+          <input
+            style={styles.inputField}
+            placeholder={
+              loginType === "staff"
+                ? "Tài khoản đăng nhập"
+                : "Số điện thoại hoặc Email"
+            }
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            required
+          />
 
           <input
             style={styles.inputField}
@@ -128,7 +118,7 @@ const Login: React.FC = () => {
             required
           />
 
-          <div style={{ textAlign: "right", marginTop: "-6px" }}>
+          <div style={styles.forgotRow}>
             <Link to="/forgot-password" style={styles.forgotPasswordLink}>
               Quên mật khẩu?
             </Link>
@@ -145,11 +135,10 @@ const Login: React.FC = () => {
           </label>
 
           <button type="submit" style={styles.btnSubmit} disabled={isLoading}>
-            {isLoading ? "ĐANG XỬ LÝ..." : "ĐĂNG NHẬP"}
+            {isLoading ? "Đang xử lý…" : "Đăng nhập"}
           </button>
         </form>
 
-        {/* LINK KÍCH HOẠT - LUÔN HIỂN THỊ cho tab Bệnh nhân, không đợi lỗi */}
         {loginType === "patient" && (
           <div style={styles.activateHintRow}>
             Chưa có tài khoản?{" "}
@@ -159,13 +148,9 @@ const Login: React.FC = () => {
           </div>
         )}
 
-        {/* LỖI ĐĂNG NHẬP - chỉ báo đỏ đơn giản, phần nhắc kích hoạt đã
-            chuyển qua Modal (showActivateModal) để không bị bỏ lỡ */}
-        {errorMsg && <div style={styles.errorBox}>⚠️ {errorMsg}</div>}
+        {errorMsg && <div style={styles.errorBox}>{errorMsg}</div>}
       </div>
 
-      {/* MODAL NHẮC KÍCH HOẠT - hiện khi Bệnh nhân đăng nhập lỗi,
-          phòng trường hợp họ phớt lờ dòng link phía trên mà vẫn cố nhập */}
       <Modal
         isOpen={showActivateModal}
         type="warning"
@@ -176,6 +161,19 @@ const Login: React.FC = () => {
   );
 };
 
+const COLORS = {
+  ink: "#12211A",
+  paper: "#F5F6F3",
+  paperRaised: "#FFFFFF",
+  safe: "#0B6E4F",
+  risk: "#9A3324",
+  muted: "#6B7268",
+  hairline: "#D8DAD3",
+};
+
+const FONT_SANS =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
 const styles: { [key: string]: React.CSSProperties } = {
   wrapper: {
     width: "100%",
@@ -183,124 +181,125 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "var(--bg)",
-    fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    padding: "10px",
+    background: COLORS.paper,
+    fontFamily: FONT_SANS,
+    padding: "20px",
     boxSizing: "border-box",
   },
   card: {
     width: "100%",
-    maxWidth: "460px",
+    maxWidth: "420px",
     boxSizing: "border-box",
-    background: "rgba(255, 255, 255, 0.92)",
-    backdropFilter: "blur(16px)",
-    borderRadius: "24px",
-    padding: "clamp(24px, 5vw, 35px) clamp(20px, 5vw, 30px)",
-    border: "1px solid rgba(255, 255, 255, 0.6)",
-    boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.08)",
+    background: COLORS.paperRaised,
+    borderRadius: "12px",
+    padding: "clamp(28px, 5vw, 36px)",
+    border: `1px solid ${COLORS.hairline}`,
   },
   brandSection: {
     textAlign: "center",
-    marginBottom: "24px",
+    marginBottom: "28px",
   },
   brandTitle: {
-    fontSize: "clamp(22px, 5vw, 26px)",
-    fontWeight: 900,
-    color: "#0d9488",
+    fontSize: "24px",
+    fontWeight: 700,
+    color: COLORS.ink,
     margin: 0,
-    letterSpacing: "1px",
+    letterSpacing: "-0.01em",
   },
   tabContainer: {
     display: "flex",
-    background: "#f1f5f9",
+    background: COLORS.paper,
     padding: "4px",
-    borderRadius: "12px",
-    marginBottom: "20px",
-    border: "1px solid #e2e8f0",
+    borderRadius: "8px",
+    marginBottom: "24px",
+    border: `1px solid ${COLORS.hairline}`,
   },
   tabBtn: {
     flex: 1,
     border: "none",
     background: "transparent",
-    padding: "8px",
+    padding: "9px",
     fontSize: "14px",
-    fontWeight: 700,
-    color: "#64748b",
+    fontWeight: 600,
+    color: COLORS.muted,
     cursor: "pointer",
-    borderRadius: "8px",
-    transition: "all 0.2s",
+    borderRadius: "6px",
+    fontFamily: FONT_SANS,
   },
   tabBtnActive: {
-    background: "#ffffff",
-    color: "#0f766e",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-  },
-  inputGroup: {
-    marginBottom: "15px",
+    background: COLORS.paperRaised,
+    color: COLORS.ink,
+    border: `1px solid ${COLORS.hairline}`,
   },
   inputField: {
     width: "100%",
-    padding: "12px 14px",
+    padding: "11px 14px",
     fontSize: "14px",
-    border: "2px solid #e2e8f0",
-    borderRadius: "10px",
-    background: "#f8fafc",
-    color: "#0f172a",
+    border: `1px solid ${COLORS.hairline}`,
+    borderRadius: "8px",
+    background: COLORS.paperRaised,
+    color: COLORS.ink,
     boxSizing: "border-box",
     marginBottom: "12px",
-    fontWeight: "500",
+    fontFamily: FONT_SANS,
+    outline: "none",
+  },
+  forgotRow: {
+    textAlign: "right",
+    marginTop: "-6px",
   },
   forgotPasswordLink: {
-    fontSize: "12px",
-    color: "#0d9488",
-    fontWeight: 700,
+    fontSize: "13px",
+    color: COLORS.safe,
+    fontWeight: 600,
     textDecoration: "none",
   },
   btnSubmit: {
     width: "100%",
-    padding: "12px",
+    padding: "13px",
     border: "none",
-    borderRadius: "10px",
+    borderRadius: "8px",
     fontSize: "15px",
-    fontWeight: 800,
+    fontWeight: 600,
     color: "#ffffff",
     cursor: "pointer",
-    background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)",
-    boxShadow: "0 4px 12px rgba(13, 148, 136, 0.2)",
+    background: COLORS.safe,
     marginTop: "8px",
+    fontFamily: FONT_SANS,
   },
   activateHintRow: {
     textAlign: "center",
     fontSize: "13px",
-    color: "#64748b",
-    marginTop: "18px",
+    color: COLORS.muted,
+    marginTop: "20px",
   },
   rememberMeRow: {
     display: "flex",
     alignItems: "center",
     gap: "8px",
     fontSize: "13px",
-    fontWeight: 600,
-    color: "#475569",
+    fontWeight: 500,
+    color: COLORS.ink,
     marginTop: "12px",
     marginBottom: "4px",
     cursor: "pointer",
     userSelect: "none",
   },
   activateInlineLink: {
-    color: "#0d9488",
-    fontWeight: 700,
+    color: COLORS.safe,
+    fontWeight: 600,
     textDecoration: "none",
   },
   errorBox: {
-    color: "#e11d48",
-    backgroundColor: "#fff1f2",
+    color: COLORS.risk,
+    backgroundColor: COLORS.paper,
     padding: "12px",
     borderRadius: "8px",
-    marginTop: "14px",
+    marginTop: "16px",
     textAlign: "center",
-    fontWeight: 600,
-    border: "1px solid #fecdd3",
+    fontWeight: 500,
+    fontSize: "14px",
+    border: `1px solid ${COLORS.hairline}`,
   },
 };
 

@@ -3,12 +3,19 @@ import { Html5Qrcode } from "html5-qrcode";
 import axiosClient from "../api/axiosClient";
 import Modal from "../components/Modal";
 import { useCustomAuth } from "../context/AuthContext";
-import { speakWeight, formatWeight } from "../utils/weightAudio";
+import { speakWeight, formatWeight, unlockAudio } from "../utils/weightAudio";
 
 interface CameraOption {
   id: string;
   label: string;
 }
+
+const STEPS = [
+  { key: "IDLE", label: "Quét CCCD" },
+  { key: "READY", label: "Xác nhận" },
+  { key: "PENDING", label: "Đo cân" },
+  { key: "COMPLETED", label: "Kết quả" },
+] as const;
 
 export default function Scanner() {
   const { user } = useCustomAuth();
@@ -20,15 +27,11 @@ export default function Scanner() {
   const [weightResult, setWeightResult] = useState<string | null>(null);
   const [isSubmittingScan, setIsSubmittingScan] = useState(false);
 
-  // Đếm ngược tự động chuyển màn hình ở bước COMPLETED (30s)
   const [autoAdvanceSeconds, setAutoAdvanceSeconds] = useState(30);
 
-  // Danh sách camera thật của máy + camera đang được chọn để quét
   const [cameras, setCameras] = useState<CameraOption[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string>("");
   const [cameraError, setCameraError] = useState<string>("");
-  // Ô nhập tay CCCD (chỉ hiện lúc npm run dev) - dùng khi máy không có
-  // camera, khỏi cần webcam mới test được luồng quét.
   const [manualQrInput, setManualQrInput] = useState<string>("");
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const isScanningRef = useRef(false);
@@ -100,9 +103,6 @@ export default function Scanner() {
     }
   };
 
-  // ============================================================
-  // BƯỚC 1: LIỆT KÊ TOÀN BỘ CAMERA THẬT CỦA MÁY (chỉ 1 lần lúc vào trang)
-  // ============================================================
   useEffect(() => {
     if (status !== "IDLE") return;
 
@@ -113,7 +113,6 @@ export default function Scanner() {
           return;
         }
         setCameras(devices);
-        // Mặc định chọn camera đầu tiên - người dùng có thể đổi qua dropdown
         setSelectedCameraId((prev) => prev || devices[0].id);
       })
       .catch(() => {
@@ -124,10 +123,6 @@ export default function Scanner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
-  // ============================================================
-  // BƯỚC 2: KHỞI ĐỘNG QUÉT với ĐÚNG camera người dùng đã chọn
-  // Tự restart lại mỗi khi selectedCameraId đổi (người dùng chọn camera khác)
-  // ============================================================
   useEffect(() => {
     if (status !== "IDLE" || !selectedCameraId) return;
 
@@ -140,7 +135,7 @@ export default function Scanner() {
         selectedCameraId,
         { fps: 25, qrbox: { width: 280, height: 280 }, aspectRatio: 1.0 },
         async (decodedText) => {
-          if (isHandled) return; // Chặn quét trùng nhiều lần liên tiếp
+          if (isHandled) return;
           isHandled = true;
           await processScanRaw(decodedText.trim());
         },
@@ -167,19 +162,16 @@ export default function Scanner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, selectedCameraId, deviceId, user]);
 
-  // Dùng chung cho cả bấm "Xác nhận" tay lẫn tự động hết 15s
   const resetToScanScreen = () => {
     setStatus("IDLE");
     setPatientName("");
     setWeightResult(null);
   };
 
-  // Đếm ngược 15s ở màn KẾT QUẢ - hết giờ mà bệnh nhân không bấm "Xác nhận"
-  // thì tự động quay lại màn quét cho bệnh nhân tiếp theo.
   useEffect(() => {
     if (status !== "COMPLETED") return;
 
-    setAutoAdvanceSeconds(15);
+    setAutoAdvanceSeconds(30);
     const countdownId = setInterval(() => {
       setAutoAdvanceSeconds((prev) => {
         if (prev <= 1) {
@@ -195,7 +187,6 @@ export default function Scanner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
-  // Lắng nghe kết quả Cân nặng từ IoT
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | undefined;
     if (status === "PENDING") {
@@ -207,7 +198,7 @@ export default function Scanner() {
           if (response.data.status === "Completed") {
             setStatus("COMPLETED");
             setWeightResult(formatWeight(response.data.weightKg) + " kg");
-            speakWeight(response.data.weightKg); // Đọc to qua loa iPad/laptop
+            speakWeight(response.data.weightKg);
           }
         } catch (error) {
           console.error("Đang chờ cân...");
@@ -219,56 +210,68 @@ export default function Scanner() {
     };
   }, [status, deviceId]);
 
+  const currentStepIndex = STEPS.findIndex((s) => s.key === status);
+
   return (
     <div style={styles.appContainer}>
-      <div style={styles.card}>
-        <h2 style={styles.appTitle}>TRẠM ĐO KHÁM TỰ ĐỘNG</h2>
+      {/* ===== DẢI BƯỚC - định vị người dùng đang ở đâu trong quy trình ===== */}
+      <div style={styles.stepRail}>
+        {STEPS.map((step, i) => (
+          <React.Fragment key={step.key}>
+            <div style={styles.stepItem}>
+              <div
+                style={{
+                  ...styles.stepDot,
+                  ...(i < currentStepIndex
+                    ? styles.stepDotDone
+                    : i === currentStepIndex
+                      ? styles.stepDotActive
+                      : styles.stepDotUpcoming),
+                }}
+              >
+                {i < currentStepIndex ? "✓" : i + 1}
+              </div>
+              <span
+                style={{
+                  ...styles.stepLabel,
+                  ...(i === currentStepIndex ? styles.stepLabelActive : {}),
+                }}
+              >
+                {step.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && <div style={styles.stepConnector} />}
+          </React.Fragment>
+        ))}
+      </div>
 
-        {patientName && (
-          <div style={styles.alertBox}>
-            Bệnh nhân:{" "}
-            <strong style={{ color: "#0f766e" }}>{patientName}</strong>
-          </div>
-        )}
-
+      <main style={styles.stage}>
         {status === "IDLE" && (
-          <>
-            <div style={styles.configSection}>
-              <p style={styles.configLabel}>Quét thẻ CCCD để bắt đầu</p>
+          <div style={styles.idleLayout}>
+            <h1 style={styles.instruction}>Đưa CCCD vào khung hình</h1>
+            <p style={styles.subInstruction}>
+              Giữ thẻ thẳng, cách camera khoảng 15–20cm
+            </p>
 
-              {/* Ô NHẬP TAY CCCD - CHỈ HIỆN LÚC "npm run dev" (import.meta.env.DEV
-                  tự động false khi build production). Dùng khi máy không có
-                  camera, khỏi cần webcam mới test được. */}
-              {import.meta.env.DEV && (
-                <div style={styles.devManualBox}>
-                  <p style={styles.devManualLabel}>
-                    🧪 [DEV] Dán chuỗi CCCD (không cần camera)
-                  </p>
-                  <textarea
-                    style={styles.devManualTextarea}
-                    rows={2}
-                    placeholder="001095000123|012345678|NGUYỄN VĂN A|01012005|Nam|Địa chỉ...|25122021"
-                    value={manualQrInput}
-                    onChange={(e) => setManualQrInput(e.target.value)}
-                  />
-                  <button
-                    style={styles.btnDevSimulate}
-                    disabled={isSubmittingScan}
-                    onClick={async () => {
-                      await processScanRaw(manualQrInput);
-                      setManualQrInput("");
-                    }}
-                  >
-                    Xử lý chuỗi này
-                  </button>
-                </div>
-              )}
+            <style>{`
+              #reader video { transform: none !important; -webkit-transform: none !important; }
+            `}</style>
+            <div style={styles.viewfinderFrame}>
+              <div id="reader" style={styles.viewfinder}></div>
+            </div>
 
-              {/* DROPDOWN CHỌN CAMERA - liệt kê đúng camera thật của máy,
-                  người dùng tự chọn, không đoán tự động qua facingMode nữa */}
+            {isSubmittingScan && (
+              <p style={styles.processingText}>Đang xử lý dữ liệu…</p>
+            )}
+
+            {cameraError && <p style={styles.errorText}>{cameraError}</p>}
+
+            {/* Cấu hình phụ - camera/device id, tiết chế, không cạnh tranh
+                với hướng dẫn chính */}
+            <div style={styles.utilityRow}>
               {cameras.length > 0 && (
                 <select
-                  style={styles.cameraSelect}
+                  style={styles.utilitySelect}
                   value={selectedCameraId}
                   onChange={(e) => setSelectedCameraId(e.target.value)}
                 >
@@ -279,89 +282,51 @@ export default function Scanner() {
                   ))}
                 </select>
               )}
-
-              {cameraError && (
-                <p
-                  style={{
-                    color: "#ef4444",
-                    fontSize: "13px",
-                    marginTop: "8px",
-                  }}
-                >
-                  ⚠️ {cameraError}
-                </p>
-              )}
-
-              {/* CAMERA QUÉT QR */}
-              <style>{`
-                #reader video {
-                  transform: none !important;
-                  -webkit-transform: none !important;
-                }
-              `}</style>
-              <div
-                id="reader"
-                style={{
-                  width: "100%",
-                  overflow: "hidden",
-                  borderRadius: "10px",
-                  margin: "10px auto 0",
-                }}
-              ></div>
-
-              {isSubmittingScan && (
-                <p
-                  style={{
-                    color: "#0d9488",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    marginTop: "10px",
-                  }}
-                >
-                  Đang xử lý dữ liệu, vui lòng đợi...
-                </p>
-              )}
-            </div>
-
-            <div style={{ marginTop: "15px" }}>
-              <p style={{ ...styles.configLabel, fontSize: "12px" }}>
-                Mã thiết bị kết nối:
-              </p>
               <input
-                style={{
-                  ...styles.inputField,
-                  padding: "6px",
-                  fontSize: "14px",
-                }}
+                style={styles.utilityInput}
                 value={deviceId}
                 onChange={(e) => setDeviceId(e.target.value)}
+                aria-label="Mã thiết bị"
               />
             </div>
-          </>
+
+            {import.meta.env.DEV && (
+              <div style={styles.devPanel}>
+                <p style={styles.devPanelLabel}>
+                  [DEV] Dán chuỗi CCCD (không cần camera)
+                </p>
+                <textarea
+                  style={styles.devTextarea}
+                  rows={2}
+                  placeholder="001095000123|012345678|NGUYỄN VĂN A|01012005|Nam|Địa chỉ...|25122021"
+                  value={manualQrInput}
+                  onChange={(e) => setManualQrInput(e.target.value)}
+                />
+                <button
+                  style={styles.devButton}
+                  disabled={isSubmittingScan}
+                  onClick={async () => {
+                    await processScanRaw(manualQrInput);
+                    setManualQrInput("");
+                  }}
+                >
+                  Xử lý chuỗi này
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         {status === "READY" && (
-          <div style={styles.readyCard}>
-            <h3
-              style={{
-                color: "#0d9488",
-                fontSize: "18px",
-                margin: "10px 0 5px 0",
-              }}
-            >
-              Đã xác nhận bệnh nhân
-            </h3>
-            <p
-              style={{
-                color: "#64748b",
-                fontSize: "14px",
-                marginBottom: "20px",
-              }}
-            >
+          <div style={styles.centerLayout}>
+            <p style={styles.eyebrow}>Đã xác nhận danh tính</p>
+            <h1 style={styles.patientNameDisplay}>{patientName}</h1>
+            <p style={styles.instructionSecondary}>
               Vui lòng bước lên bàn cân khi đã sẵn sàng.
             </p>
             <button
               onClick={async () => {
+                unlockAudio(); // Mở khóa NGAY trong hành động click thật
                 try {
                   await axiosClient.post("/api/measurements/start-weighing", {
                     deviceId,
@@ -377,32 +342,29 @@ export default function Scanner() {
                   );
                 }
               }}
-              style={styles.btnSuccess}
+              style={styles.primaryButton}
             >
-              TIẾN HÀNH CÂN
+              Tiến hành cân
             </button>
           </div>
         )}
 
         {status === "PENDING" && (
-          <div style={styles.pendingCard}>
-            <div style={styles.pulseSpinner}></div>
-            <h3
-              style={{
-                color: "#0d9488",
-                fontSize: "18px",
-                margin: "15px 0 5px 0",
-              }}
-            >
-              MÁY CÂN ĐÃ SẴN SÀNG
-            </h3>
-            <p style={{ color: "#64748b", fontSize: "14px" }}>
-              Vui lòng bước lên bàn cân và đứng vững...
+          <div style={styles.centerLayout}>
+            <style>{`
+              @keyframes kioskPulse {
+                0%, 100% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.15); opacity: 0.7; }
+              }
+            `}</style>
+            <div style={styles.pulseRing}>
+              <div style={styles.pulseDot} />
+            </div>
+            <h1 style={styles.instruction}>Đứng yên trên bàn cân</h1>
+            <p style={styles.instructionSecondary}>
+              Đang chờ dữ liệu ổn định, vui lòng không di chuyển…
             </p>
 
-            {/* NÚT GIẢ LẬP CÂN - CHỈ HIỆN LÚC "npm run dev" (import.meta.env.DEV
-                tự động là false khi build production, KHÔNG BAO GIỜ lộ ra bản
-                thật chạy trên Kiosk). Dùng để test không cần cân vật lý. */}
             {import.meta.env.DEV && (
               <button
                 onClick={async () => {
@@ -424,36 +386,28 @@ export default function Scanner() {
                     console.error(error);
                   }
                 }}
-                style={styles.btnDevSimulate}
+                style={styles.devButtonStandalone}
               >
-                🧪 [DEV] Giả lập cân ngay
+                [DEV] Giả lập cân ngay
               </button>
             )}
           </div>
         )}
 
         {status === "COMPLETED" && (
-          <div style={styles.completedCard}>
-            <h2
-              style={{
-                fontSize: "14px",
-                color: "#15803d",
-                letterSpacing: "1px",
-                margin: "0 0 10px 0",
-              }}
-            >
-              KẾT QUẢ ĐO CỦA BẠN
-            </h2>
-            <div style={styles.weightDisplay}>{weightResult}</div>
-            <button onClick={resetToScanScreen} style={styles.btnSuccess}>
-              XÁC NHẬN
+          <div style={styles.centerLayout}>
+            <p style={styles.eyebrow}>Kết quả đo</p>
+            <div style={styles.resultValue}>{weightResult}</div>
+            <button onClick={resetToScanScreen} style={styles.primaryButton}>
+              Xác nhận
             </button>
             <p style={styles.autoAdvanceText}>
-              Tự động chuyển sau {autoAdvanceSeconds} giây...
+              Tự động chuyển sau {autoAdvanceSeconds} giây
             </p>
           </div>
         )}
-      </div>
+      </main>
+
       <Modal
         isOpen={modalConfig.isOpen}
         message={modalConfig.message}
@@ -464,176 +418,300 @@ export default function Scanner() {
   );
 }
 
-// Giữ nguyên Object styles cũ
+// ============================================================
+// TOKENS - dùng chung bảng màu lâm sàng với Profile.tsx (nhất quán)
+// ============================================================
+const COLORS = {
+  ink: "#12211A",
+  paper: "#F5F6F3",
+  paperRaised: "#FFFFFF",
+  accent: "#0B6E4F",
+  muted: "#6B7268",
+  hairline: "#D8DAD3",
+  error: "#9A3324",
+};
+
+const FONT_SANS =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+const FONT_NUMBER =
+  "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
 const styles: Record<string, React.CSSProperties> = {
   appContainer: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
     minHeight: "calc(100vh - 80px)",
-    background: "var(--bg)",
-    padding: "20px",
-    fontFamily: "'Segoe UI', Roboto, sans-serif",
+    background: COLORS.paper,
+    fontFamily: FONT_SANS,
+    display: "flex",
+    flexDirection: "column",
   },
-  card: {
+
+  // ===== DẢI BƯỚC =====
+  stepRail: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "24px 16px",
+    borderBottom: `1px solid ${COLORS.hairline}`,
+    flexWrap: "wrap",
+  },
+  stepItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+  stepDot: {
+    width: "28px",
+    height: "28px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
+    fontWeight: 700,
+    fontFamily: FONT_NUMBER,
+    flexShrink: 0,
+  },
+  stepDotUpcoming: {
+    background: COLORS.paperRaised,
+    border: `1px solid ${COLORS.hairline}`,
+    color: COLORS.muted,
+  },
+  stepDotActive: {
+    background: COLORS.accent,
+    color: "#ffffff",
+  },
+  stepDotDone: {
+    background: COLORS.accent,
+    color: "#ffffff",
+  },
+  stepLabel: {
+    fontSize: "14px",
+    fontWeight: 600,
+    color: COLORS.muted,
+  },
+  stepLabelActive: {
+    color: COLORS.ink,
+  },
+  stepConnector: {
+    width: "32px",
+    height: "1px",
+    background: COLORS.hairline,
+  },
+
+  // ===== KHUNG SÂN KHẤU CHÍNH =====
+  stage: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "32px 20px 48px",
+  },
+  idleLayout: {
     width: "100%",
-    maxWidth: "460px",
-    backgroundColor: "#ffffff",
-    borderRadius: "24px",
-    padding: "35px",
-    boxShadow: "0 10px 25px -5px rgba(13, 148, 136, 0.08)",
-    border: "1px solid #ccfbf1",
+    maxWidth: "560px",
     textAlign: "center",
   },
-  appTitle: {
-    fontSize: "22px",
-    fontWeight: 800,
-    color: "#0d9488",
-    marginBottom: "20px",
-    letterSpacing: "0.5px",
+  centerLayout: {
+    width: "100%",
+    maxWidth: "480px",
+    textAlign: "center",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
   },
-  alertBox: {
-    backgroundColor: "#ccfbf1",
-    color: "#115e59",
-    padding: "14px",
-    borderRadius: "14px",
+
+  eyebrow: {
+    fontSize: "13px",
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    marginBottom: "12px",
+  },
+  instruction: {
+    fontSize: "clamp(28px, 5vw, 38px)",
+    fontWeight: 700,
+    color: COLORS.ink,
+    margin: "0 0 10px 0",
+    lineHeight: 1.2,
+  },
+  instructionSecondary: {
+    fontSize: "18px",
+    color: COLORS.muted,
+    margin: "0 0 32px 0",
+    lineHeight: 1.5,
+  },
+  subInstruction: {
+    fontSize: "16px",
+    color: COLORS.muted,
+    margin: "0 0 28px 0",
+  },
+  patientNameDisplay: {
+    fontSize: "clamp(32px, 6vw, 44px)",
+    fontWeight: 700,
+    color: COLORS.ink,
+    margin: "0 0 16px 0",
+    lineHeight: 1.15,
+  },
+
+  // ===== VIEWFINDER =====
+  viewfinderFrame: {
+    width: "100%",
+    maxWidth: "360px",
+    margin: "0 auto",
+    border: `2px solid ${COLORS.ink}`,
+    borderRadius: "12px",
+    padding: "8px",
+    background: COLORS.paperRaised,
+  },
+  viewfinder: {
+    width: "100%",
+    overflow: "hidden",
+    borderRadius: "8px",
+  },
+  processingText: {
     fontSize: "15px",
     fontWeight: 600,
-    marginBottom: "25px",
-    lineHeight: "1.5",
-    border: "1px solid rgba(13, 148, 136, 0.15)",
+    color: COLORS.accent,
+    marginTop: "16px",
   },
-  configSection: {
-    border: "1px dashed #cbd5e1",
-    padding: "10px",
-    borderRadius: "16px",
-    marginBottom: "15px",
-    backgroundColor: "#f8fafc",
-  },
-  configLabel: {
+  errorText: {
     fontSize: "14px",
-    fontWeight: 700,
-    color: "#475569",
-    marginBottom: "10px",
+    color: COLORS.error,
+    marginTop: "12px",
   },
-  cameraSelect: {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: "10px",
-    border: "1px solid #cbd5e1",
-    fontSize: "14px",
-    fontWeight: 600,
-    color: "#334155",
-    backgroundColor: "#ffffff",
-    outline: "none",
-    cursor: "pointer",
+
+  // ===== HÀNG TIỆN ÍCH (camera/device id) =====
+  utilityRow: {
+    display: "flex",
+    gap: "10px",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    marginTop: "28px",
   },
-  inputField: {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: "10px",
-    border: "1px solid #cbd5e1",
-    fontSize: "16px",
-    color: "#0f766e",
-    fontWeight: "bold",
-    outline: "none",
-    backgroundColor: "#ffffff",
-    boxSizing: "border-box",
-    marginBottom: "15px",
+  utilitySelect: {
+    padding: "8px 12px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.hairline}`,
+    fontSize: "13px",
+    color: COLORS.ink,
+    background: COLORS.paperRaised,
+    fontFamily: FONT_SANS,
   },
-  btnSuccess: {
-    width: "100%",
-    padding: "14px",
-    backgroundColor: "#0d9488",
+  utilityInput: {
+    padding: "8px 12px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.hairline}`,
+    fontSize: "13px",
+    fontFamily: FONT_NUMBER,
+    color: COLORS.ink,
+    background: COLORS.paperRaised,
+    width: "140px",
+    textAlign: "center",
+  },
+
+  // ===== NÚT HÀNH ĐỘNG CHÍNH - to, dễ chạm =====
+  primaryButton: {
+    padding: "20px 48px",
+    background: COLORS.accent,
     color: "#ffffff",
     border: "none",
     borderRadius: "10px",
-    fontSize: "14px",
+    fontSize: "20px",
     fontWeight: 700,
     cursor: "pointer",
-    boxShadow: "0 4px 10px rgba(13, 148, 136, 0.2)",
-    transition: "0.2s",
+    fontFamily: FONT_SANS,
+    minWidth: "260px",
   },
-  btnDevSimulate: {
+
+  // ===== TRẠNG THÁI ĐANG ĐO =====
+  pulseRing: {
+    width: "88px",
+    height: "88px",
+    borderRadius: "50%",
+    border: `2px solid ${COLORS.hairline}`,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: "28px",
+  },
+  pulseDot: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "50%",
+    background: COLORS.accent,
+    animation: "kioskPulse 1.4s infinite ease-in-out",
+  },
+
+  // ===== KẾT QUẢ =====
+  resultValue: {
+    fontFamily: FONT_NUMBER,
+    fontSize: "clamp(56px, 14vw, 88px)",
+    fontWeight: 700,
+    color: COLORS.ink,
+    lineHeight: 1,
+    margin: "0 0 36px 0",
+    fontVariantNumeric: "tabular-nums",
+  },
+  autoAdvanceText: {
     marginTop: "16px",
-    width: "100%",
-    padding: "10px",
-    backgroundColor: "#fef3c7",
-    color: "#92400e",
-    border: "1px dashed #f59e0b",
+    fontSize: "14px",
+    color: COLORS.muted,
+  },
+
+  // ===== DEV TOOLS - thu nhỏ, đẩy xuống, không cạnh tranh UI thật =====
+  devPanel: {
+    marginTop: "36px",
+    padding: "12px",
+    border: `1px dashed ${COLORS.hairline}`,
     borderRadius: "8px",
-    fontSize: "12px",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  devManualBox: {
-    backgroundColor: "#fffbeb",
-    border: "1px dashed #f59e0b",
-    borderRadius: "10px",
-    padding: "10px",
-    marginBottom: "12px",
     textAlign: "left",
+    maxWidth: "360px",
+    marginLeft: "auto",
+    marginRight: "auto",
   },
-  devManualLabel: {
-    fontSize: "12px",
+  devPanelLabel: {
+    fontSize: "11px",
     fontWeight: 700,
-    color: "#92400e",
+    color: COLORS.muted,
     margin: "0 0 6px 0",
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
   },
-  devManualTextarea: {
+  devTextarea: {
     width: "100%",
     padding: "8px",
     borderRadius: "6px",
-    border: "1px solid #fcd34d",
+    border: `1px solid ${COLORS.hairline}`,
     fontSize: "12px",
-    fontFamily: "monospace",
+    fontFamily: FONT_NUMBER,
     boxSizing: "border-box",
     resize: "vertical",
   },
-  pendingCard: {
-    padding: "30px 20px",
-    border: "2px solid #2dd4bf",
-    borderRadius: "16px",
-    backgroundColor: "#f0fdfa",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-  },
-  readyCard: {
-    padding: "30px 20px",
-    border: "2px solid #0d9488",
-    borderRadius: "16px",
-    backgroundColor: "#f0fdfa",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-  },
-  readyIcon: {
-    fontSize: "40px",
-  },
-  autoAdvanceText: {
-    marginTop: "12px",
+  devButton: {
+    marginTop: "8px",
+    width: "100%",
+    padding: "8px",
+    background: COLORS.paperRaised,
+    color: COLORS.muted,
+    border: `1px dashed ${COLORS.hairline}`,
+    borderRadius: "6px",
     fontSize: "12px",
-    color: "#94a3b8",
-    fontStyle: "italic",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: FONT_SANS,
   },
-  pulseSpinner: {
-    width: "24px",
-    height: "24px",
-    backgroundColor: "#0d9488",
-    borderRadius: "50%",
-    animation: "re-render 1.2s infinite ease-in-out",
-  },
-  completedCard: {
-    padding: "30px 20px",
-    border: "2px solid #4ade80",
-    borderRadius: "16px",
-    backgroundColor: "#f0fdf4",
-  },
-  weightDisplay: {
-    fontSize: "48px",
-    fontWeight: 900,
-    color: "#16a34a",
-    margin: "10px 0 20px 0",
+  devButtonStandalone: {
+    marginTop: "28px",
+    padding: "8px 16px",
+    background: "transparent",
+    color: COLORS.muted,
+    border: `1px dashed ${COLORS.hairline}`,
+    borderRadius: "6px",
+    fontSize: "12px",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: FONT_SANS,
   },
 };

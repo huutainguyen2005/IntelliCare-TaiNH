@@ -37,9 +37,6 @@ export default function ForgotPassword() {
 
   const isEmail = identifier.includes("@");
 
-  // ==========================================
-  // BƯỚC 1: NHẬP EMAIL/SĐT -> GỬI OTP
-  // ==========================================
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!identifier.trim()) {
@@ -81,9 +78,6 @@ export default function ForgotPassword() {
     }
   };
 
-  // ==========================================
-  // BƯỚC 2: NHẬP OTP + MẬT KHẨU MỚI
-  // ==========================================
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otp) return showModal("Vui lòng nhập mã OTP!", "warning");
@@ -95,14 +89,12 @@ export default function ForgotPassword() {
     setLoading(true);
     try {
       if (isEmail) {
-        // Email: BE tự verify OTP qua otpService
         await axiosClient.post("/auth/patient/set-password", {
           identifier: identifier.trim(),
           password: newPassword,
           otp,
         });
       } else {
-        // SĐT: verify OTP qua Firebase ở Client trước, rồi mới gọi BE đổi MK
         if (confirmationResult) {
           await confirmationResult.confirm(otp);
         }
@@ -130,23 +122,21 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div style={styles.appContainer}>
+    <div style={styles.pageBackground}>
       <div style={styles.card}>
-        <h2 style={styles.appTitle}>QUÊN MẬT KHẨU</h2>
+        <div style={styles.eyebrow}>Bước {step}/2</div>
+        <h1 style={styles.title}>Quên mật khẩu</h1>
 
         {step === 1 && (
-          <form
-            onSubmit={handleSendOtp}
-            style={{ display: "flex", flexDirection: "column" }}
-          >
-            <p style={styles.description}>
+          <form onSubmit={handleSendOtp}>
+            <p style={styles.introText}>
               Nhập Email hoặc Số điện thoại đã đăng ký để nhận mã xác thực đặt
               lại mật khẩu.
             </p>
 
-            <label style={styles.infoLabel}>Email hoặc Số điện thoại *</label>
+            <label style={styles.label}>Email hoặc Số điện thoại</label>
             <input
-              style={styles.inputField}
+              style={styles.input}
               placeholder="VD: nguyenvan@gmail.com hoặc 0912345678"
               required
               value={identifier}
@@ -154,24 +144,21 @@ export default function ForgotPassword() {
             />
 
             <button type="submit" disabled={loading} style={styles.btnPrimary}>
-              {loading ? "ĐANG GỬI..." : "GỬI MÃ OTP"}
+              {loading ? "Đang gửi…" : "Gửi mã OTP"}
             </button>
           </form>
         )}
 
         {step === 2 && (
-          <form
-            onSubmit={handleResetPassword}
-            style={{ display: "flex", flexDirection: "column" }}
-          >
-            <div style={styles.alertBox}>
-              Mã xác thực đã được gửi đến {isEmail ? "Email" : "Số điện thoại"}:{" "}
+          <form onSubmit={handleResetPassword}>
+            <div style={styles.greetingBox}>
+              Mã xác thực đã được gửi đến {isEmail ? "email" : "số điện thoại"}:{" "}
               <b>{identifier}</b>
             </div>
 
-            <label style={styles.infoLabel}>Nhập mã OTP (6 số) *</label>
+            <label style={styles.label}>Nhập mã OTP (6 số)</label>
             <input
-              style={styles.otpInputField}
+              style={styles.otpInput}
               type="text"
               maxLength={6}
               required
@@ -179,9 +166,9 @@ export default function ForgotPassword() {
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
             />
 
-            <label style={styles.infoLabel}>Mật khẩu mới *</label>
+            <label style={styles.label}>Mật khẩu mới</label>
             <input
-              style={styles.inputField}
+              style={styles.input}
               type="password"
               placeholder="Ít nhất 6 ký tự"
               required
@@ -189,9 +176,9 @@ export default function ForgotPassword() {
               onChange={(e) => setNewPassword(e.target.value)}
             />
 
-            <label style={styles.infoLabel}>Xác nhận mật khẩu mới *</label>
+            <label style={styles.label}>Xác nhận mật khẩu mới</label>
             <input
-              style={styles.inputField}
+              style={styles.input}
               type="password"
               placeholder="Nhập lại mật khẩu mới"
               required
@@ -200,7 +187,7 @@ export default function ForgotPassword() {
             />
 
             <button type="submit" disabled={loading} style={styles.btnPrimary}>
-              {loading ? "ĐANG XỬ LÝ..." : "ĐẶT LẠI MẬT KHẨU"}
+              {loading ? "Đang xử lý…" : "Đặt lại mật khẩu"}
             </button>
 
             <button
@@ -226,105 +213,129 @@ export default function ForgotPassword() {
   );
 }
 
+const COLORS = {
+  ink: "#12211A",
+  paper: "#F5F6F3",
+  paperRaised: "#FFFFFF",
+  safe: "#0B6E4F",
+  muted: "#6B7268",
+  hairline: "#D8DAD3",
+};
+
+const FONT_SANS =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
 const styles = {
-  appContainer: {
+  pageBackground: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
     minHeight: "calc(100vh - 70px)",
-    backgroundColor: "var(--bg)",
-    padding: "10px",
+    background: COLORS.paper,
+    padding: "20px",
     boxSizing: "border-box",
-    fontFamily: "'Segoe UI', Roboto, sans-serif",
+    fontFamily: FONT_SANS,
   },
   card: {
     width: "100%",
-    maxWidth: "440px",
-    backgroundColor: "#ffffff",
-    borderRadius: "20px",
-    padding: "clamp(24px, 5vw, 35px) clamp(20px, 5vw, 30px)",
-    boxShadow: "0 10px 25px -5px rgba(13, 148, 136, 0.1)",
-    border: "1px solid #ccfbf1",
+    maxWidth: "420px",
+    background: COLORS.paperRaised,
+    borderRadius: "12px",
+    border: `1px solid ${COLORS.hairline}`,
+    padding: "clamp(28px, 5vw, 36px)",
     boxSizing: "border-box",
   },
-  appTitle: {
-    fontSize: "clamp(20px, 5vw, 22px)",
-    fontWeight: 800,
-    color: "#0d9488",
+  eyebrow: {
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    marginBottom: "8px",
     textAlign: "center",
-    marginBottom: "12px",
   },
-  description: {
+  title: {
+    fontSize: "22px",
+    fontWeight: 700,
+    color: COLORS.ink,
     textAlign: "center",
-    color: "#64748b",
-    marginBottom: "20px",
+    margin: "0 0 20px 0",
+  },
+  introText: {
+    textAlign: "center",
+    color: COLORS.muted,
+    marginBottom: "24px",
     fontSize: "14px",
-    lineHeight: "1.5",
+    lineHeight: "1.6",
   },
-  infoLabel: {
+  label: {
+    display: "block",
     fontSize: "13px",
     fontWeight: 600,
-    color: "#334155",
+    color: COLORS.muted,
     marginBottom: "6px",
-    textTransform: "uppercase",
   },
-  inputField: {
+  input: {
     width: "100%",
-    padding: "10px 14px",
-    borderRadius: "10px",
-    border: "1px solid #cbd5e1",
+    padding: "11px 14px",
+    borderRadius: "8px",
+    border: `1px solid ${COLORS.hairline}`,
     fontSize: "14px",
-    marginBottom: "12px",
+    marginBottom: "16px",
     outline: "none",
     boxSizing: "border-box",
+    fontFamily: FONT_SANS,
+    color: COLORS.ink,
+    background: COLORS.paperRaised,
   },
-  otpInputField: {
+  otpInput: {
     width: "100%",
-    padding: "10px 14px",
-    borderRadius: "10px",
-    border: "2px solid #0d9488",
-    fontSize: "20px",
-    color: "#0d9488",
-    fontWeight: "bold",
-    marginBottom: "15px",
+    padding: "12px 14px",
+    borderRadius: "8px",
+    border: `2px solid ${COLORS.safe}`,
+    fontSize: "22px",
+    color: COLORS.safe,
+    fontWeight: 700,
+    marginBottom: "18px",
     outline: "none",
     boxSizing: "border-box",
     textAlign: "center",
-    letterSpacing: "6px",
+    letterSpacing: "8px",
+    fontFamily: FONT_SANS,
   },
   btnPrimary: {
     width: "100%",
-    padding: "12px",
-    backgroundColor: "#0d9488",
+    padding: "13px",
+    background: COLORS.safe,
     color: "#ffffff",
     border: "none",
-    borderRadius: "10px",
-    fontSize: "14px",
-    fontWeight: 700,
+    borderRadius: "8px",
+    fontSize: "15px",
+    fontWeight: 600,
     cursor: "pointer",
     marginTop: "8px",
-    boxShadow: "0 4px 12px rgba(13, 148, 136, 0.2)",
+    fontFamily: FONT_SANS,
   },
   btnSecondary: {
     width: "100%",
     padding: "10px",
-    backgroundColor: "transparent",
-    color: "#64748b",
+    background: "transparent",
+    color: COLORS.muted,
     border: "none",
     fontSize: "13px",
     fontWeight: 600,
     cursor: "pointer",
     marginTop: "10px",
+    fontFamily: FONT_SANS,
   },
-  alertBox: {
-    backgroundColor: "#ccfbf1",
-    color: "#115e59",
-    padding: "12px",
-    borderRadius: "10px",
-    fontSize: "13px",
-    fontWeight: 600,
-    marginBottom: "16px",
-    lineHeight: "1.4",
-    border: "1px solid rgba(13, 148, 136, 0.15)",
+  greetingBox: {
+    background: COLORS.paper,
+    border: `1px solid ${COLORS.hairline}`,
+    color: COLORS.ink,
+    padding: "14px 16px",
+    borderRadius: "8px",
+    fontSize: "14px",
+    marginBottom: "20px",
+    lineHeight: "1.5",
   },
 } as const;

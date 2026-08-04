@@ -37,7 +37,6 @@ interface PatientFormState {
 }
 
 export default function PatientManagement() {
-  // Format DD/MM/YYYY (luôn có số 0 phía trước)
   const formatDate = (dateInput: string | null): string => {
     if (!dateInput) return "Chưa cập nhật";
     const d = new Date(dateInput);
@@ -50,7 +49,7 @@ export default function PatientManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const PER_PAGE = 5;
+  const PER_PAGE = 8;
 
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | "PENDING_PASSWORD" | "ACTIVE"
@@ -82,10 +81,6 @@ export default function PatientManagement() {
     setModalConfig({ isOpen: true, message, type });
   };
 
-  // Ghi chú: lấy 1 lần với size lớn rồi lọc/phân trang phía Client, đồng bộ
-  // cách làm với StaffManagement.tsx. Nếu số lượng bệnh nhân lên tới hàng
-  // chục nghìn, nên đổi sang phân trang thật từ Server (BE đã hỗ trợ sẵn
-  // qua ?page=&size=, chỉ cần đổi lại cách gọi ở đây).
   const fetchPatientList = async () => {
     setIsLoading(true);
     try {
@@ -202,11 +197,14 @@ export default function PatientManagement() {
   return (
     <div style={styles.pageBackground}>
       <div style={styles.container}>
-        <h2 style={styles.title}>QUẢN LÝ BỆNH NHÂN</h2>
+        <header style={styles.header}>
+          <div style={styles.eyebrow}>Bệnh nhân</div>
+          <h1 style={styles.pageTitle}>Quản lý bệnh nhân</h1>
+        </header>
 
         <input
           style={styles.searchInput}
-          placeholder="🔍 Tìm theo tên, mã BN, SĐT hoặc CCCD..."
+          placeholder="Tìm theo tên, mã BN, SĐT hoặc CCCD"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -243,31 +241,35 @@ export default function PatientManagement() {
         </div>
 
         {isLoading ? (
-          <p style={styles.loadingText}>Đang tải danh sách...</p>
+          <p style={styles.stateText}>Đang tải danh sách…</p>
         ) : filteredList.length === 0 ? (
-          <p style={styles.emptyText}>Không tìm thấy bệnh nhân nào.</p>
+          <p style={styles.stateText}>Không tìm thấy bệnh nhân nào.</p>
         ) : (
-          <div style={{ marginTop: "20px" }}>
+          <div style={styles.table}>
+            <div style={styles.tableHeadRow}>
+              <span>Bệnh nhân</span>
+              <span>Thao tác</span>
+            </div>
             {pagedList.map((p) => (
               <div
                 key={p.patientId}
-                style={{ ...styles.patientCard, cursor: "pointer" }}
+                style={styles.tableRow}
                 onClick={() => setDetailPatient(p)}
               >
-                <div>
-                  <div style={styles.patientName}>
+                <div style={styles.rowMainCol}>
+                  <span style={styles.rowName}>
                     {p.fullName}
                     {!p.isActive && (
-                      <span style={styles.lockedTag}>ĐÃ KHÓA</span>
+                      <span style={styles.lockedTag}>Đã khóa</span>
                     )}
-                  </div>
-                  <div style={styles.patientMeta}>
+                  </span>
+                  <span style={styles.rowMeta}>
                     {p.patientCode} · {p.phoneNumber} ·{" "}
                     {statusLabel(p.accountStatus)}
-                  </div>
+                  </span>
                 </div>
                 <div
-                  style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}
+                  style={styles.rowActions}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -283,7 +285,7 @@ export default function PatientManagement() {
                     Sửa
                   </button>
                   <button
-                    style={styles.btnDelete}
+                    style={styles.btnDeleteSmall}
                     onClick={() => setConfirmDeletePatient(p)}
                   >
                     Xóa
@@ -381,7 +383,7 @@ export default function PatientManagement() {
                 }
               />
 
-              <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+              <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
                 <button
                   type="button"
                   style={styles.btnCancel}
@@ -406,12 +408,27 @@ export default function PatientManagement() {
       {detailPatient && (
         <div style={styles.overlay} onClick={() => setDetailPatient(null)}>
           <div style={styles.formCard} onClick={(e) => e.stopPropagation()}>
-            <h3 style={styles.formTitle}>{detailPatient.fullName}</h3>
+            <div style={styles.detailHeader}>
+              {detailPatient.faceImageUrl ? (
+                <img
+                  src={detailPatient.faceImageUrl}
+                  alt=""
+                  style={styles.avatar}
+                />
+              ) : (
+                <div style={styles.avatarPlaceholder}>
+                  {detailPatient.fullName.charAt(0)}
+                </div>
+              )}
+              <div>
+                <h3 style={styles.formTitle}>{detailPatient.fullName}</h3>
+                <span style={styles.detailSubtitle}>
+                  {detailPatient.patientCode}
+                </span>
+              </div>
+            </div>
             <p style={styles.detailRow}>
-              <b>Mã BN:</b> {detailPatient.patientCode}
-            </p>
-            <p style={styles.detailRow}>
-              <b>SĐT:</b> {detailPatient.phoneNumber}
+              <b>Số điện thoại:</b> {detailPatient.phoneNumber}
             </p>
             <p style={styles.detailRow}>
               <b>Email:</b> {detailPatient.email || "Chưa cập nhật"}
@@ -515,170 +532,215 @@ export default function PatientManagement() {
   );
 }
 
+const COLORS = {
+  ink: "#12211A",
+  paper: "#F5F6F3",
+  paperRaised: "#FFFFFF",
+  safe: "#0B6E4F",
+  risk: "#9A3324",
+  muted: "#6B7268",
+  hairline: "#D8DAD3",
+};
+
+const FONT_SANS =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+const FONT_NUMBER =
+  "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
 const styles: Record<string, React.CSSProperties> = {
   pageBackground: {
     minHeight: "calc(100vh - 80px)",
-    background: "var(--bg)",
-    padding: "30px 20px",
-    fontFamily: "'Segoe UI', Roboto, sans-serif",
+    background: COLORS.paper,
+    display: "flex",
+    justifyContent: "center",
+    padding: "48px 20px",
+    fontFamily: FONT_SANS,
+    boxSizing: "border-box",
   },
   container: {
+    width: "100%",
     maxWidth: "800px",
-    margin: "0 auto",
   },
-  title: {
-    fontSize: "22px",
-    fontWeight: 800,
-    color: "#0f172a",
-    marginBottom: "20px",
+  header: {
+    borderBottom: `1px solid ${COLORS.hairline}`,
+    paddingBottom: "18px",
+    marginBottom: "24px",
+  },
+  eyebrow: {
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    marginBottom: "6px",
+  },
+  pageTitle: {
+    fontSize: "26px",
+    fontWeight: 700,
+    color: COLORS.ink,
+    margin: 0,
   },
   searchInput: {
     width: "100%",
-    padding: "14px 16px",
-    borderRadius: "14px",
-    border: "1px solid #e2e8f0",
+    padding: "12px 16px",
     fontSize: "15px",
+    borderRadius: "8px",
+    border: `1px solid ${COLORS.hairline}`,
+    background: COLORS.paperRaised,
+    color: COLORS.ink,
     outline: "none",
     boxSizing: "border-box",
-    backgroundColor: "#ffffff",
+    fontFamily: FONT_SANS,
   },
   filterRow: {
     display: "flex",
-    gap: "10px",
-    marginTop: "12px",
+    gap: "8px",
     flexWrap: "wrap",
+    marginTop: "12px",
+    marginBottom: "28px",
   },
   filterSelect: {
-    flex: "1 1 180px",
-    padding: "10px 12px",
-    borderRadius: "10px",
-    border: "1px solid #e2e8f0",
+    flex: "1 1 200px",
+    padding: "9px 10px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.hairline}`,
+    fontSize: "13px",
+    color: COLORS.ink,
+    background: COLORS.paperRaised,
+    outline: "none",
+    fontFamily: FONT_SANS,
+  },
+  stateText: {
+    textAlign: "center",
+    color: COLORS.muted,
+    fontSize: "15px",
+    padding: "32px 0",
+  },
+  table: {
+    borderTop: `1px solid ${COLORS.hairline}`,
+  },
+  tableHeadRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    padding: "10px 0",
+  },
+  tableRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "16px 0",
+    borderBottom: `1px solid ${COLORS.hairline}`,
+    cursor: "pointer",
+    gap: "16px",
+    flexWrap: "wrap",
+  },
+  rowMainCol: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "3px",
+    minWidth: 0,
+  },
+  rowName: {
+    fontSize: "16px",
+    fontWeight: 600,
+    color: COLORS.ink,
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  },
+  rowMeta: {
+    fontSize: "13px",
+    color: COLORS.muted,
+  },
+  rowActions: {
+    display: "flex",
+    gap: "8px",
+    flexShrink: 0,
+  },
+  lockedTag: {
+    fontSize: "11px",
+    fontWeight: 700,
+    color: COLORS.risk,
+    border: `1px solid ${COLORS.risk}`,
+    borderRadius: "4px",
+    padding: "1px 6px",
+  },
+  btnEdit: {
+    padding: "7px 14px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.hairline}`,
+    background: COLORS.paperRaised,
+    color: COLORS.ink,
     fontSize: "13px",
     fontWeight: 600,
-    color: "#334155",
-    backgroundColor: "#ffffff",
-    outline: "none",
     cursor: "pointer",
+    fontFamily: FONT_SANS,
   },
-  loadingText: {
-    textAlign: "center",
-    color: "#64748b",
-    marginTop: "30px",
+  btnLock: {
+    padding: "7px 14px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.hairline}`,
+    background: COLORS.paperRaised,
+    color: COLORS.muted,
+    fontSize: "13px",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: FONT_SANS,
   },
-  emptyText: {
-    textAlign: "center",
-    color: "#64748b",
-    marginTop: "30px",
-    fontStyle: "italic",
+  btnUnlock: {
+    padding: "7px 14px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.safe}`,
+    background: COLORS.paperRaised,
+    color: COLORS.safe,
+    fontSize: "13px",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: FONT_SANS,
+  },
+  btnDeleteSmall: {
+    padding: "7px 14px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.risk}`,
+    background: COLORS.paperRaised,
+    color: COLORS.risk,
+    fontSize: "13px",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: FONT_SANS,
   },
   paginationRow: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    gap: "16px",
-    marginTop: "20px",
-    paddingTop: "20px",
-    borderTop: "1px solid #e2e8f0",
+    gap: "20px",
+    marginTop: "24px",
   },
   pageBtn: {
-    padding: "8px 16px",
-    borderRadius: "8px",
-    border: "1px solid #0d9488",
-    background: "#ffffff",
-    color: "#0d9488",
+    padding: "6px 14px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.hairline}`,
+    background: COLORS.paperRaised,
+    color: COLORS.ink,
     fontSize: "13px",
-    fontWeight: 700,
+    fontWeight: 600,
     cursor: "pointer",
+    fontFamily: FONT_SANS,
   },
   pageBtnDisabled: {
-    borderColor: "#e2e8f0",
-    color: "#cbd5e1",
+    color: COLORS.muted,
     cursor: "not-allowed",
+    opacity: 0.5,
   },
   pageIndicator: {
+    fontFamily: FONT_NUMBER,
     fontSize: "13px",
-    fontWeight: 700,
-    color: "#475569",
-  },
-  patientCard: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    background: "#ffffff",
-    padding: "18px 20px",
-    borderRadius: "16px",
-    marginBottom: "12px",
-    border: "1px solid #e2e8f0",
-  },
-  patientName: {
-    fontSize: "16px",
-    fontWeight: 700,
-    color: "#0f172a",
-  },
-  patientMeta: {
-    fontSize: "13px",
-    color: "#64748b",
-    marginTop: "4px",
-  },
-  btnEdit: {
-    background: "#eff6ff",
-    color: "#2563eb",
-    border: "1px solid #bfdbfe",
-    borderRadius: "8px",
-    padding: "8px 14px",
-    fontSize: "13px",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  btnDelete: {
-    background: "#fef2f2",
-    color: "#ef4444",
-    border: "1px solid #fecaca",
-    borderRadius: "8px",
-    padding: "8px 14px",
-    fontSize: "13px",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  btnLock: {
-    background: "#f1f5f9",
-    color: "#475569",
-    border: "1px solid #cbd5e1",
-    borderRadius: "8px",
-    padding: "8px 14px",
-    fontSize: "13px",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  btnUnlock: {
-    background: "#f0fdf4",
-    color: "#16a34a",
-    border: "1px solid #bbf7d0",
-    borderRadius: "8px",
-    padding: "8px 14px",
-    fontSize: "13px",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  btnLockConfirm: {
-    flex: 1,
-    padding: "12px",
-    background: "#ef4444",
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "10px",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  lockedTag: {
-    marginLeft: "8px",
-    fontSize: "10px",
-    padding: "2px 8px",
-    background: "#fef2f2",
-    color: "#ef4444",
-    borderRadius: "6px",
-    fontWeight: 800,
-    letterSpacing: "0.5px",
+    color: COLORS.muted,
   },
   overlay: {
     position: "fixed",
@@ -686,86 +748,147 @@ const styles: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    background: "rgba(15, 23, 42, 0.6)",
+    background: "rgba(18, 33, 26, 0.45)",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 9999,
     padding: "20px",
     boxSizing: "border-box",
+    overflowY: "auto",
   },
   formCard: {
-    background: "#ffffff",
+    background: COLORS.paperRaised,
     width: "100%",
-    maxWidth: "420px",
-    borderRadius: "20px",
-    padding: "30px",
+    maxWidth: "440px",
+    borderRadius: "12px",
+    padding: "32px",
     boxSizing: "border-box",
     maxHeight: "90vh",
     overflowY: "auto",
   },
   formTitle: {
-    fontSize: "18px",
-    fontWeight: 800,
-    color: "#0f172a",
-    marginTop: 0,
-    marginBottom: "20px",
-  },
-  detailRow: {
-    fontSize: "14px",
-    color: "#334155",
-    margin: "6px 0",
+    fontSize: "19px",
+    fontWeight: 700,
+    color: COLORS.ink,
+    margin: 0,
   },
   label: {
     display: "block",
     fontSize: "13px",
-    fontWeight: 700,
-    color: "#475569",
-    marginTop: "12px",
+    fontWeight: 600,
+    color: COLORS.muted,
+    marginTop: "16px",
     marginBottom: "6px",
   },
   input: {
     width: "100%",
     padding: "10px 12px",
-    borderRadius: "8px",
-    border: "1px solid #cbd5e1",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.hairline}`,
     fontSize: "14px",
     boxSizing: "border-box",
     outline: "none",
+    fontFamily: FONT_SANS,
+    color: COLORS.ink,
+    background: COLORS.paperRaised,
   },
   btnCancel: {
     flex: 1,
     padding: "12px",
-    background: "#f1f5f9",
-    color: "#475569",
-    border: "none",
-    borderRadius: "10px",
-    fontWeight: 700,
+    background: COLORS.paper,
+    color: COLORS.ink,
+    border: `1px solid ${COLORS.hairline}`,
+    borderRadius: "8px",
+    fontWeight: 600,
     cursor: "pointer",
+    fontFamily: FONT_SANS,
   },
   btnSubmit: {
     flex: 1,
     padding: "12px",
-    background: "#0d9488",
+    background: COLORS.safe,
     color: "#ffffff",
     border: "none",
-    borderRadius: "10px",
-    fontWeight: 700,
+    borderRadius: "8px",
+    fontWeight: 600,
     cursor: "pointer",
+    fontFamily: FONT_SANS,
+  },
+  btnDelete: {
+    flex: 1,
+    padding: "12px",
+    background: COLORS.risk,
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: FONT_SANS,
+  },
+  btnLockConfirm: {
+    flex: 1,
+    padding: "12px",
+    background: COLORS.risk,
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: FONT_SANS,
   },
   confirmCard: {
-    background: "#ffffff",
+    background: COLORS.paperRaised,
     width: "100%",
-    maxWidth: "360px",
-    borderRadius: "20px",
-    padding: "26px",
+    maxWidth: "380px",
+    borderRadius: "12px",
+    padding: "28px",
     boxSizing: "border-box",
     textAlign: "center",
   },
   confirmText: {
-    fontSize: "14px",
-    color: "#334155",
+    fontSize: "15px",
+    color: COLORS.ink,
     marginBottom: "20px",
     lineHeight: 1.5,
+  },
+  detailHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    marginBottom: "20px",
+  },
+  avatar: {
+    width: "48px",
+    height: "48px",
+    borderRadius: "50%",
+    objectFit: "cover",
+    flexShrink: 0,
+  },
+  avatarPlaceholder: {
+    width: "48px",
+    height: "48px",
+    borderRadius: "50%",
+    background: COLORS.paper,
+    border: `1px solid ${COLORS.hairline}`,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "18px",
+    fontWeight: 700,
+    color: COLORS.muted,
+    flexShrink: 0,
+  },
+  detailSubtitle: {
+    fontSize: "13px",
+    color: COLORS.muted,
+    fontFamily: FONT_NUMBER,
+  },
+  detailRow: {
+    fontSize: "14px",
+    color: COLORS.ink,
+    margin: "10px 0",
+    paddingBottom: "10px",
+    borderBottom: `1px solid ${COLORS.hairline}`,
   },
 };

@@ -14,14 +14,12 @@ let recaptchaVerifierInstance: RecaptchaVerifier | null = null;
 export default function PatientActivation() {
   const navigate = useNavigate();
 
-  // State quản lý luồng
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [confirmationResult, setConfirmationResult] =
     useState<ConfirmationResult | null>(null);
 
-  // State dữ liệu
   const [patientInfo, setPatientInfo] = useState({
     fullName: "",
     patientCode: "",
@@ -52,9 +50,6 @@ export default function PatientActivation() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // ==========================================
-  // BƯỚC 1: XÁC MINH CCCD & NGÀY SINH (NHẬP TAY)
-  // ==========================================
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -67,13 +62,12 @@ export default function PatientActivation() {
         fullName: res.data.fullName,
         patientCode: res.data.patientCode,
       });
-      setStep(2); // Chuyển sang bước nhập SĐT/Pass
+      setStep(2);
     } catch (error: any) {
       const backendMsg: string =
         error.response?.data ||
         "Không tìm thấy hồ sơ! Vui lòng kiểm tra lại CCCD và Ngày sinh.";
 
-      // Tài khoản đã kích hoạt từ trước -> đóng popup thì đưa thẳng về Login
       const alreadyActivated =
         typeof backendMsg === "string" &&
         backendMsg.includes("đã được kích hoạt");
@@ -88,9 +82,6 @@ export default function PatientActivation() {
     }
   };
 
-  // ==========================================
-  // BƯỚC 2.1: GỬI OTP (EMAIL HOẶC SMS)
-  // ==========================================
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password.length < 6)
@@ -100,14 +91,11 @@ export default function PatientActivation() {
 
     setLoading(true);
     try {
-      // ƯU TIÊN 1: NẾU CÓ EMAIL -> GỬI OTP EMAIL
       if (formData.email && formData.email.trim() !== "") {
         await axiosClient.post("/auth/send-otp", { email: formData.email });
         setIsOtpSent(true);
         showModal("Đã gửi mã OTP vào Email của bạn!", "success");
-      }
-      // ƯU TIÊN 2: KHÔNG CÓ EMAIL -> GỬI OTP SMS FIREBASE
-      else {
+      } else {
         if (!recaptchaVerifierInstance) {
           recaptchaVerifierInstance = new RecaptchaVerifier(
             auth,
@@ -136,15 +124,11 @@ export default function PatientActivation() {
     }
   };
 
-  // ==========================================
-  // BƯỚC 2.2: XÁC NHẬN OTP & KÍCH HOẠT
-  // ==========================================
   const handleActivate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.otp) return showModal("Vui lòng nhập OTP!", "warning");
     setLoading(true);
     try {
-      // Nếu là OTP SMS, cần verify qua Firebase trước khi gọi Backend
       if (!formData.email && confirmationResult) {
         await confirmationResult.confirm(formData.otp);
       }
@@ -164,31 +148,21 @@ export default function PatientActivation() {
   };
 
   return (
-    <div style={styles.appContainer}>
+    <div style={styles.pageBackground}>
       <div style={styles.card}>
-        <h2 style={styles.appTitle}>KÍCH HOẠT HỒ SƠ Y TẾ</h2>
+        <div style={styles.eyebrow}>Bước {step === 1 ? "1" : "2"}/2</div>
+        <h1 style={styles.title}>Kích hoạt hồ sơ y tế</h1>
 
         {step === 1 && (
-          <form
-            onSubmit={handleVerify}
-            style={{ display: "flex", flexDirection: "column" }}
-          >
-            <p
-              style={{
-                textAlign: "center",
-                color: "#64748b",
-                marginBottom: "25px",
-                fontSize: "14px",
-                lineHeight: "1.5",
-              }}
-            >
-              Vui lòng điền thông tin CCCD đã sử dụng tại trạm đo để kích hoạt
-              tài khoản của bạn.
+          <form onSubmit={handleVerify}>
+            <p style={styles.introText}>
+              Điền thông tin CCCD đã sử dụng tại trạm đo để kích hoạt tài khoản
+              của bạn.
             </p>
 
-            <label style={styles.infoLabel}>Số CCCD *</label>
+            <label style={styles.label}>Số CCCD</label>
             <input
-              style={styles.inputField}
+              style={styles.input}
               name="idCard"
               placeholder="Nhập số thẻ CCCD (12 số)"
               required
@@ -196,9 +170,9 @@ export default function PatientActivation() {
               onChange={handleChange}
             />
 
-            <label style={styles.infoLabel}>Ngày sinh *</label>
+            <label style={styles.label}>Ngày sinh</label>
             <input
-              style={styles.inputField}
+              style={styles.input}
               name="dob"
               type="date"
               required
@@ -207,26 +181,23 @@ export default function PatientActivation() {
             />
 
             <button type="submit" disabled={loading} style={styles.btnPrimary}>
-              {loading ? "ĐANG TÌM KIẾM..." : "TÌM HỒ SƠ"}
+              {loading ? "Đang tìm kiếm…" : "Tìm hồ sơ"}
             </button>
           </form>
         )}
 
         {step === 2 && (
-          <form
-            onSubmit={!isOtpSent ? handleSendOtp : handleActivate}
-            style={{ display: "flex", flexDirection: "column" }}
-          >
-            <div style={styles.alertBox}>
-              Xin chào <b>{patientInfo.fullName}</b>! Vui lòng thiết lập thông
+          <form onSubmit={!isOtpSent ? handleSendOtp : handleActivate}>
+            <div style={styles.greetingBox}>
+              Xin chào <b>{patientInfo.fullName}</b>. Vui lòng thiết lập thông
               tin bảo mật cho hồ sơ của bạn.
             </div>
 
             {!isOtpSent ? (
               <>
-                <label style={styles.infoLabel}>Số điện thoại chính *</label>
+                <label style={styles.label}>Số điện thoại chính</label>
                 <input
-                  style={styles.inputField}
+                  style={styles.input}
                   name="phoneNumber"
                   placeholder="VD: 0912345678"
                   required
@@ -234,11 +205,11 @@ export default function PatientActivation() {
                   onChange={handleChange}
                 />
 
-                <label style={styles.infoLabel}>
-                  Email (Tùy chọn - Nhận mã OTP nhanh hơn)
+                <label style={styles.label}>
+                  Email (tùy chọn — nhận mã OTP nhanh hơn)
                 </label>
                 <input
-                  style={styles.inputField}
+                  style={styles.input}
                   name="email"
                   type="email"
                   placeholder="VD: nguyenvan@gmail.com"
@@ -246,9 +217,9 @@ export default function PatientActivation() {
                   onChange={handleChange}
                 />
 
-                <label style={styles.infoLabel}>Mật khẩu mới *</label>
+                <label style={styles.label}>Mật khẩu mới</label>
                 <input
-                  style={styles.inputField}
+                  style={styles.input}
                   name="password"
                   type="password"
                   placeholder="Ít nhất 6 ký tự"
@@ -257,9 +228,9 @@ export default function PatientActivation() {
                   onChange={handleChange}
                 />
 
-                <label style={styles.infoLabel}>Xác nhận mật khẩu *</label>
+                <label style={styles.label}>Xác nhận mật khẩu</label>
                 <input
-                  style={styles.inputField}
+                  style={styles.input}
                   name="confirmPassword"
                   type="password"
                   placeholder="Nhập lại mật khẩu"
@@ -273,25 +244,18 @@ export default function PatientActivation() {
                   disabled={loading}
                   style={styles.btnPrimary}
                 >
-                  {loading ? "ĐANG XỬ LÝ..." : "NHẬN MÃ KÍCH HOẠT"}
+                  {loading ? "Đang xử lý…" : "Nhận mã kích hoạt"}
                 </button>
               </>
             ) : (
               <>
-                <label style={styles.infoLabel}>Nhập mã OTP (6 số) *</label>
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#64748b",
-                    marginBottom: "15px",
-                    marginTop: "-5px",
-                  }}
-                >
+                <label style={styles.label}>Nhập mã OTP (6 số)</label>
+                <p style={styles.otpHint}>
                   Mã xác thực đã được gửi đến{" "}
-                  {formData.email ? "Email" : "Số điện thoại"} của bạn.
+                  {formData.email ? "email" : "số điện thoại"} của bạn.
                 </p>
                 <input
-                  style={styles.otpInputField}
+                  style={styles.otpInput}
                   name="otp"
                   type="text"
                   maxLength={6}
@@ -310,7 +274,7 @@ export default function PatientActivation() {
                   disabled={loading}
                   style={styles.btnPrimary}
                 >
-                  {loading ? "ĐANG XÁC THỰC..." : "HOÀN TẤT KÍCH HOẠT"}
+                  {loading ? "Đang xác thực…" : "Hoàn tất kích hoạt"}
                 </button>
               </>
             )}
@@ -329,87 +293,123 @@ export default function PatientActivation() {
   );
 }
 
+const COLORS = {
+  ink: "#12211A",
+  paper: "#F5F6F3",
+  paperRaised: "#FFFFFF",
+  safe: "#0B6E4F",
+  muted: "#6B7268",
+  hairline: "#D8DAD3",
+};
+
+const FONT_SANS =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
 const styles = {
-  appContainer: {
+  pageBackground: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
     minHeight: "calc(100vh - 70px)",
-    backgroundColor: "var(--bg)",
-    padding: "10px",
+    background: COLORS.paper,
+    padding: "20px",
     boxSizing: "border-box",
-    fontFamily: "'Segoe UI', Roboto, sans-serif",
+    fontFamily: FONT_SANS,
   },
   card: {
     width: "100%",
-    maxWidth: "460px",
-    backgroundColor: "#ffffff",
-    borderRadius: "20px",
-    padding: "clamp(24px, 5vw, 35px) clamp(20px, 5vw, 30px)",
-    boxShadow: "0 10px 25px -5px rgba(13, 148, 136, 0.1)",
-    border: "1px solid #ccfbf1",
+    maxWidth: "440px",
+    background: COLORS.paperRaised,
+    borderRadius: "12px",
+    border: `1px solid ${COLORS.hairline}`,
+    padding: "clamp(28px, 5vw, 36px)",
     boxSizing: "border-box",
   },
-  appTitle: {
-    fontSize: "clamp(20px, 5vw, 22px)",
-    fontWeight: 800,
-    color: "#0d9488",
+  eyebrow: {
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    marginBottom: "8px",
     textAlign: "center",
-    marginBottom: "18px",
   },
-  infoLabel: {
+  title: {
+    fontSize: "22px",
+    fontWeight: 700,
+    color: COLORS.ink,
+    textAlign: "center",
+    margin: "0 0 20px 0",
+  },
+  introText: {
+    textAlign: "center",
+    color: COLORS.muted,
+    marginBottom: "24px",
+    fontSize: "14px",
+    lineHeight: "1.6",
+  },
+  label: {
+    display: "block",
     fontSize: "13px",
     fontWeight: 600,
-    color: "#334155",
+    color: COLORS.muted,
     marginBottom: "6px",
-    textTransform: "uppercase",
   },
-  inputField: {
+  input: {
     width: "100%",
-    padding: "10px 14px",
-    borderRadius: "10px",
-    border: "1px solid #cbd5e1",
+    padding: "11px 14px",
+    borderRadius: "8px",
+    border: `1px solid ${COLORS.hairline}`,
     fontSize: "14px",
-    marginBottom: "12px",
+    marginBottom: "16px",
     outline: "none",
     boxSizing: "border-box",
+    fontFamily: FONT_SANS,
+    color: COLORS.ink,
+    background: COLORS.paperRaised,
   },
-  otpInputField: {
+  otpInput: {
     width: "100%",
-    padding: "10px 14px",
-    borderRadius: "10px",
-    border: "2px solid #0d9488",
-    fontSize: "20px",
-    color: "#0d9488",
-    fontWeight: "bold",
-    marginBottom: "15px",
+    padding: "12px 14px",
+    borderRadius: "8px",
+    border: `2px solid ${COLORS.safe}`,
+    fontSize: "22px",
+    color: COLORS.safe,
+    fontWeight: 700,
+    marginBottom: "18px",
     outline: "none",
     boxSizing: "border-box",
     textAlign: "center",
-    letterSpacing: "6px",
+    letterSpacing: "8px",
+    fontFamily: FONT_SANS,
+  },
+  otpHint: {
+    fontSize: "13px",
+    color: COLORS.muted,
+    marginBottom: "16px",
+    marginTop: "-4px",
   },
   btnPrimary: {
     width: "100%",
-    padding: "12px",
-    backgroundColor: "#0d9488",
+    padding: "13px",
+    background: COLORS.safe,
     color: "#ffffff",
     border: "none",
-    borderRadius: "10px",
-    fontSize: "14px",
-    fontWeight: 700,
+    borderRadius: "8px",
+    fontSize: "15px",
+    fontWeight: 600,
     cursor: "pointer",
     marginTop: "8px",
-    boxShadow: "0 4px 12px rgba(13, 148, 136, 0.2)",
+    fontFamily: FONT_SANS,
   },
-  alertBox: {
-    backgroundColor: "#ccfbf1",
-    color: "#115e59",
-    padding: "12px",
-    borderRadius: "10px",
-    fontSize: "13px",
-    fontWeight: 600,
-    marginBottom: "16px",
-    lineHeight: "1.4",
-    border: "1px solid rgba(13, 148, 136, 0.15)",
+  greetingBox: {
+    background: COLORS.paper,
+    border: `1px solid ${COLORS.hairline}`,
+    color: COLORS.ink,
+    padding: "14px 16px",
+    borderRadius: "8px",
+    fontSize: "14px",
+    marginBottom: "20px",
+    lineHeight: "1.5",
   },
 } as const;

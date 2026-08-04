@@ -68,7 +68,7 @@ export default function AdminDashboard() {
   if (isLoading) {
     return (
       <div style={styles.pageBackground}>
-        <p style={styles.loadingText}>Đang tải số liệu...</p>
+        <p style={styles.stateText}>Đang tải số liệu…</p>
       </div>
     );
   }
@@ -76,7 +76,9 @@ export default function AdminDashboard() {
   if (error || !stats) {
     return (
       <div style={styles.pageBackground}>
-        <p style={styles.errorText}>{error || "Có lỗi xảy ra."}</p>
+        <p style={{ ...styles.stateText, color: COLORS.risk }}>
+          {error || "Có lỗi xảy ra."}
+        </p>
       </div>
     );
   }
@@ -84,101 +86,110 @@ export default function AdminDashboard() {
   return (
     <div style={styles.pageBackground}>
       <div style={styles.container}>
-        <h2 style={styles.title}>TỔNG QUAN HỆ THỐNG</h2>
+        <header style={styles.header}>
+          <div style={styles.eyebrow}>Tổng quan</div>
+          <h1 style={styles.pageTitle}>Tổng quan hệ thống</h1>
+        </header>
 
-        {/* ===== TỶ LỆ KÍCH HOẠT - trọng tâm chính ===== */}
-        <div style={styles.heroCard}>
-          <div style={styles.heroLabel}>TỶ LỆ BỆNH NHÂN ĐÃ KÍCH HOẠT</div>
-          <div style={styles.heroValue}>{stats.activationRatePercent}%</div>
-          <div style={styles.progressBarTrack}>
+        {/* ===== TỶ LỆ KÍCH HOẠT - ô đọc số chính, đúng pattern hệ thống ===== */}
+        <div style={styles.readout}>
+          <div style={styles.readoutLabel}>Tỷ lệ bệnh nhân đã kích hoạt</div>
+          <div style={styles.readoutValue}>
+            {stats.activationRatePercent}
+            <span style={styles.readoutUnit}>%</span>
+          </div>
+          <div style={styles.progressTrack}>
             <div
               style={{
-                ...styles.progressBarFill,
+                ...styles.progressFill,
                 width: `${stats.activationRatePercent}%`,
               }}
             />
           </div>
-          <div style={styles.heroBreakdown}>
+          <div style={styles.readoutBreakdown}>
             <span>
-              ✅ Đã kích hoạt: <b>{stats.activatedPatients}</b>
+              Đã kích hoạt: <b>{stats.activatedPatients}</b>
             </span>
+            <span style={styles.metaDivider}>·</span>
             <span>
-              ⏳ Chưa kích hoạt: <b>{stats.pendingPatients}</b>
+              Chưa kích hoạt: <b>{stats.pendingPatients}</b>
             </span>
+            <span style={styles.metaDivider}>·</span>
             <span>
-              📋 Tổng: <b>{stats.totalPatients}</b>
+              Tổng: <b>{stats.totalPatients}</b>
             </span>
           </div>
-          <div style={styles.heroSubText}>
+          <div style={styles.readoutFootnote}>
             Thời gian trung bình từ lúc đo đến lúc kích hoạt:{" "}
             <b>{formatDuration(stats.avgActivationHours)}</b>
           </div>
         </div>
 
-        {/* ===== LƯỚI THẺ SỐ LIỆU ===== */}
+        {/* ===== LƯỚI SỐ LIỆU - dạng bảng kẻ mảnh, không phải bento-card ===== */}
         <div style={styles.statsGrid}>
-          <div style={styles.statCard}>
-            <div style={styles.statLabel}>🔒 Hồ sơ bệnh nhân bị khóa</div>
+          <div style={styles.statCell}>
+            <div style={styles.statLabel}>Hồ sơ bệnh nhân bị khóa</div>
             <div style={styles.statValue}>{stats.lockedPatients}</div>
           </div>
-
-          <div style={styles.statCard}>
-            <div style={styles.statLabel}>🩺 Bác sĩ / Y tá</div>
+          <div style={styles.statCell}>
+            <div style={styles.statLabel}>Bác sĩ / Y tá</div>
             <div style={styles.statValue}>{stats.totalStaff}</div>
             <div style={styles.statSubText}>
               {stats.totalDoctors} Bác sĩ · {stats.totalNurses} Y tá ·{" "}
               {stats.lockedStaff} bị khóa
             </div>
           </div>
-
-          <div style={styles.statCard}>
-            <div style={styles.statLabel}>⚖️ Thiết bị cân</div>
+          <div style={styles.statCell}>
+            <div style={styles.statLabel}>Thiết bị cân</div>
             <div style={styles.statValue}>
               {stats.activeDevices}/{stats.totalDevices}
             </div>
             <div style={styles.statSubText}>đang hoạt động</div>
           </div>
-
-          <div style={styles.statCard}>
-            <div style={styles.statLabel}>📈 Lượt đo hôm nay</div>
+          <div style={styles.statCell}>
+            <div style={styles.statLabel}>Lượt đo hôm nay</div>
             <div style={styles.statValue}>{stats.measurementsToday}</div>
           </div>
-
-          <div style={styles.statCard}>
-            <div style={styles.statLabel}>📊 Lượt đo tuần này</div>
+          <div style={styles.statCell}>
+            <div style={styles.statLabel}>Lượt đo tuần này</div>
             <div style={styles.statValue}>{stats.measurementsThisWeek}</div>
           </div>
-
-          <div style={styles.statCard}>
-            <div style={styles.statLabel}>🗓️ Lượt đo tháng này</div>
+          <div style={styles.statCell}>
+            <div style={styles.statLabel}>Lượt đo tháng này</div>
             <div style={styles.statValue}>{stats.measurementsThisMonth}</div>
           </div>
         </div>
 
         {/* ===== DANH SÁCH CÓ NGUY CƠ BỎ CUỘC ===== */}
-        <h3 style={styles.sectionTitle}>
-          ⚠️ Bệnh nhân có nguy cơ bỏ dở kích hoạt
-        </h3>
-        <p style={styles.sectionHint}>
-          Đã đo tại Kiosk hơn 3 ngày nhưng vẫn chưa kích hoạt tài khoản — danh
-          sách 20 trường hợp lâu nhất.
-        </p>
+        <div style={styles.sectionHeader}>
+          <h2 style={styles.sectionTitle}>
+            Bệnh nhân có nguy cơ bỏ dở kích hoạt
+          </h2>
+          <p style={styles.sectionHint}>
+            Đã đo tại Kiosk hơn 3 ngày nhưng vẫn chưa kích hoạt tài khoản — 20
+            trường hợp lâu nhất.
+          </p>
+        </div>
 
         {stats.staleActivations.length === 0 ? (
-          <p style={styles.emptyText}>
-            🎉 Không có trường hợp nào đáng lo ngại.
-          </p>
+          <p style={styles.stateText}>Không có trường hợp nào đáng lo ngại.</p>
         ) : (
-          <div style={{ marginTop: "12px" }}>
+          <div style={styles.table}>
+            <div style={styles.tableHeadRow}>
+              <span>Bệnh nhân</span>
+              <span>Số ngày chưa kích hoạt</span>
+            </div>
             {stats.staleActivations.map((p) => (
-              <div key={p.patientId} style={styles.staleCard}>
-                <div>
-                  <div style={styles.staleName}>{p.fullName}</div>
-                  <div style={styles.staleMeta}>
+              <div key={p.patientId} style={styles.tableRow}>
+                <div style={styles.rowMainCol}>
+                  <span style={styles.rowName}>{p.fullName}</span>
+                  <span style={styles.rowMeta}>
                     {p.phoneNumber} · Đo ngày {formatDate(p.createdAt)}
-                  </div>
+                  </span>
                 </div>
-                <div style={styles.staleDaysTag}>{p.daysSinceCreated} ngày</div>
+                <span style={styles.staleDaysTag}>
+                  {p.daysSinceCreated} ngày
+                </span>
               </div>
             ))}
           </div>
@@ -188,151 +199,215 @@ export default function AdminDashboard() {
   );
 }
 
+const COLORS = {
+  ink: "#12211A",
+  paper: "#F5F6F3",
+  paperRaised: "#FFFFFF",
+  safe: "#0B6E4F",
+  risk: "#9A3324",
+  muted: "#6B7268",
+  hairline: "#D8DAD3",
+};
+
+const FONT_SANS =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+const FONT_NUMBER =
+  "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
 const styles: Record<string, React.CSSProperties> = {
   pageBackground: {
     minHeight: "calc(100vh - 80px)",
-    background: "var(--bg)",
-    padding: "30px 20px",
-    fontFamily: "'Segoe UI', Roboto, sans-serif",
+    background: COLORS.paper,
+    padding: "48px 20px",
+    fontFamily: FONT_SANS,
+    boxSizing: "border-box",
   },
   container: {
-    maxWidth: "900px",
+    maxWidth: "800px",
     margin: "0 auto",
   },
-  title: {
-    fontSize: "22px",
-    fontWeight: 800,
-    color: "#0f172a",
-    marginBottom: "20px",
-  },
-  loadingText: {
-    textAlign: "center",
-    color: "#64748b",
-    marginTop: "60px",
-  },
-  errorText: {
-    textAlign: "center",
-    color: "#ef4444",
-    marginTop: "60px",
-    fontWeight: 600,
-  },
-  heroCard: {
-    background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)",
-    borderRadius: "24px",
-    padding: "30px",
-    color: "#ffffff",
-    boxShadow: "0 10px 25px -5px rgba(13, 148, 136, 0.3)",
+  header: {
+    borderBottom: `1px solid ${COLORS.hairline}`,
+    paddingBottom: "18px",
     marginBottom: "24px",
   },
-  heroLabel: {
-    fontSize: "13px",
+  eyebrow: {
+    fontSize: "12px",
     fontWeight: 700,
-    letterSpacing: "0.5px",
-    opacity: 0.9,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    marginBottom: "6px",
   },
-  heroValue: {
-    fontSize: "48px",
-    fontWeight: 900,
-    margin: "6px 0 16px 0",
+  pageTitle: {
+    fontSize: "26px",
+    fontWeight: 700,
+    color: COLORS.ink,
+    margin: 0,
   },
-  progressBarTrack: {
+  stateText: {
+    textAlign: "center",
+    color: COLORS.muted,
+    fontSize: "15px",
+    padding: "40px 0",
+  },
+
+  // ===== Ô ĐỌC SỐ CHÍNH =====
+  readout: {
+    background: COLORS.paperRaised,
+    border: `1px solid ${COLORS.hairline}`,
+    borderTop: `3px solid ${COLORS.safe}`,
+    borderRadius: "8px",
+    padding: "28px",
+    marginBottom: "32px",
+  },
+  readoutLabel: {
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    marginBottom: "8px",
+  },
+  readoutValue: {
+    fontFamily: FONT_NUMBER,
+    fontSize: "clamp(40px, 8vw, 56px)",
+    fontWeight: 700,
+    color: COLORS.ink,
+    lineHeight: 1,
+    marginBottom: "16px",
+  },
+  readoutUnit: {
+    fontSize: "24px",
+    fontWeight: 600,
+    marginLeft: "4px",
+    color: COLORS.muted,
+  },
+  progressTrack: {
     width: "100%",
-    height: "10px",
-    borderRadius: "10px",
-    background: "rgba(255,255,255,0.25)",
+    height: "6px",
+    borderRadius: "3px",
+    background: COLORS.paper,
     overflow: "hidden",
   },
-  progressBarFill: {
+  progressFill: {
     height: "100%",
-    background: "#ffffff",
-    borderRadius: "10px",
+    background: COLORS.safe,
+    borderRadius: "3px",
     transition: "width 0.4s ease",
   },
-  heroBreakdown: {
+  readoutBreakdown: {
     display: "flex",
-    gap: "20px",
+    gap: "8px",
     flexWrap: "wrap",
     marginTop: "16px",
     fontSize: "13px",
+    color: COLORS.ink,
   },
-  heroSubText: {
+  metaDivider: {
+    color: COLORS.hairline,
+  },
+  readoutFootnote: {
     marginTop: "14px",
+    paddingTop: "14px",
+    borderTop: `1px solid ${COLORS.hairline}`,
     fontSize: "13px",
-    opacity: 0.95,
-    borderTop: "1px solid rgba(255,255,255,0.25)",
-    paddingTop: "12px",
+    color: COLORS.muted,
   },
+
+  // ===== LƯỚI SỐ LIỆU =====
   statsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "14px",
-    marginBottom: "30px",
+    border: `1px solid ${COLORS.hairline}`,
+    borderRadius: "8px",
+    overflow: "hidden",
+    marginBottom: "36px",
   },
-  statCard: {
-    background: "#ffffff",
-    borderRadius: "16px",
+  statCell: {
+    background: COLORS.paperRaised,
     padding: "18px",
-    border: "1px solid #e2e8f0",
+    borderRight: `1px solid ${COLORS.hairline}`,
+    borderBottom: `1px solid ${COLORS.hairline}`,
   },
   statLabel: {
     fontSize: "13px",
-    fontWeight: 700,
-    color: "#64748b",
+    fontWeight: 600,
+    color: COLORS.muted,
     marginBottom: "8px",
   },
   statValue: {
+    fontFamily: FONT_NUMBER,
     fontSize: "26px",
-    fontWeight: 900,
-    color: "#0f172a",
+    fontWeight: 700,
+    color: COLORS.ink,
   },
   statSubText: {
     fontSize: "12px",
-    color: "#94a3b8",
+    color: COLORS.muted,
     marginTop: "4px",
   },
+
+  // ===== DANH SÁCH RỦI RO =====
+  sectionHeader: {
+    marginBottom: "8px",
+  },
   sectionTitle: {
-    fontSize: "16px",
-    fontWeight: 800,
-    color: "#0f172a",
-    marginBottom: "4px",
+    fontSize: "17px",
+    fontWeight: 700,
+    color: COLORS.ink,
+    margin: "0 0 4px 0",
   },
   sectionHint: {
     fontSize: "13px",
-    color: "#64748b",
-    marginBottom: "8px",
+    color: COLORS.muted,
+    margin: 0,
   },
-  emptyText: {
-    textAlign: "center",
-    color: "#64748b",
-    marginTop: "20px",
-    fontStyle: "italic",
+  table: {
+    borderTop: `1px solid ${COLORS.hairline}`,
+    marginTop: "16px",
   },
-  staleCard: {
+  tableHeadRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    padding: "10px 0",
+  },
+  tableRow: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    background: "#fffbeb",
-    border: "1px solid #fde68a",
-    borderRadius: "14px",
-    padding: "14px 18px",
-    marginBottom: "10px",
+    padding: "14px 0",
+    borderBottom: `1px solid ${COLORS.hairline}`,
+    gap: "16px",
   },
-  staleName: {
+  rowMainCol: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+    minWidth: 0,
+  },
+  rowName: {
     fontSize: "15px",
-    fontWeight: 700,
-    color: "#0f172a",
+    fontWeight: 600,
+    color: COLORS.ink,
   },
-  staleMeta: {
-    fontSize: "12px",
-    color: "#78716c",
-    marginTop: "2px",
+  rowMeta: {
+    fontSize: "13px",
+    color: COLORS.muted,
   },
   staleDaysTag: {
-    background: "#f59e0b",
-    color: "#ffffff",
-    fontSize: "12px",
-    fontWeight: 800,
-    padding: "6px 12px",
-    borderRadius: "10px",
+    fontFamily: FONT_NUMBER,
+    fontSize: "13px",
+    fontWeight: 700,
+    color: COLORS.risk,
+    border: `1px solid ${COLORS.risk}`,
+    borderRadius: "6px",
+    padding: "4px 10px",
+    whiteSpace: "nowrap",
   },
 };

@@ -9,6 +9,7 @@ interface UserProfile {
   role: string;
   email: string;
   weightKg: number | null;
+  faceImageUrl: string | null;
 }
 interface WeightLog {
   logId: number;
@@ -18,8 +19,6 @@ interface WeightLog {
 }
 
 const Profile: React.FC = () => {
-  // Format DD/MM/YYYY (luôn có số 0 phía trước) - toLocaleDateString mặc định
-  // không pad số 0 (VD: "1/8/2026" thay vì "01/08/2026")
   const formatDate = (dateInput: string | Date): string => {
     const d = new Date(dateInput);
     const day = String(d.getDate()).padStart(2, "0");
@@ -31,16 +30,11 @@ const Profile: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // State cho Lịch sử đo
   const [logs, setLogs] = useState<WeightLog[]>([]);
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [logPage, setLogPage] = useState<number>(1);
   const LOGS_PER_PAGE = 5;
 
-  // State xử lý hiệu ứng hover nút bấm bằng React thuần
-  const [isLogBtnHovered, setIsLogBtnHovered] = useState(false);
-
-  // SỬA LỖI: Tải dữ liệu thông minh dựa theo vai trò (Role) của người đăng nhập
   useEffect(() => {
     if (!isAuthenticated) {
       setLoading(false);
@@ -48,14 +42,12 @@ const Profile: React.FC = () => {
     }
 
     setLoading(true);
-    // Bước 1: Lấy thông tin profile trước để biết người này là ai
     axiosClient
       .get("/profile/me")
       .then((profileRes) => {
         const userData = profileRes.data;
         setProfile(userData);
 
-        // Bước 2: CHỈ khi người đăng nhập là BỆNH NHÂN thì mới tải lịch sử đo
         if (userData?.role === "ROLE_PATIENT") {
           return axiosClient
             .get("/api/weight-logs/me")
@@ -78,7 +70,7 @@ const Profile: React.FC = () => {
     setLogPage(1);
   };
 
-  // --- THUẬT TOÁN QUÉT RỦI RO SINH TRẮC HỌC ---
+  // --- THUẬT TOÁN QUÉT RỦI RO SINH TRẮC HỌC (giữ nguyên, không đổi) ---
   const evaluateLogRisk = (targetLog: WeightLog, allLogs: WeightLog[]) => {
     const targetDate = new Date(targetLog.measuredAt);
     const oneWeekAgo = new Date(targetDate.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -96,7 +88,7 @@ const Profile: React.FC = () => {
       if (logDate >= oneWeekAgo && weightDiff > 2) {
         return {
           isRisk: true,
-          msg: `Trọng lượng thay đổi bất thường (> 2kg trong 1 tuần so với ngày ${formattedLogDate})`,
+          msg: `Thay đổi hơn 2kg trong 1 tuần so với ${formattedLogDate}`,
         };
       }
 
@@ -105,7 +97,7 @@ const Profile: React.FC = () => {
         if (weightDiff > fivePercentLimit) {
           return {
             isRisk: true,
-            msg: `Trọng lượng vượt ngưỡng an toàn (> 5% cơ thể trong 1 tháng so với ngày ${formattedLogDate})`,
+            msg: `Thay đổi quá 5% cân nặng trong 1 tháng so với ${formattedLogDate}`,
           };
         }
       }
@@ -116,24 +108,19 @@ const Profile: React.FC = () => {
   if (!isAuthenticated)
     return (
       <div style={styles.stateWrapper}>
-        <div style={styles.stateCard}>
-          ⚠️ Vui lòng đăng nhập hệ thống để xem thông tin
-        </div>
+        <div style={styles.stateCard}>Vui lòng đăng nhập để xem hồ sơ.</div>
       </div>
     );
   if (loading)
     return (
       <div style={styles.stateWrapper}>
         <div style={styles.spinner}></div>
-        <div style={{ marginTop: "12px", color: "#0f766e", fontWeight: 700 }}>
-          ĐANG TẢI HỒ SƠ Y TẾ...
-        </div>
+        <div style={styles.loadingText}>Đang tải hồ sơ...</div>
       </div>
     );
 
   const isPatient = profile?.role === "ROLE_PATIENT";
 
-  // Xử lý mảng log hiển thị cho bệnh nhân
   const sortedLogs = [...logs].sort(
     (a, b) =>
       new Date(b.measuredAt).getTime() - new Date(a.measuredAt).getTime(),
@@ -154,183 +141,153 @@ const Profile: React.FC = () => {
     ? evaluateLogRisk(latestVirtualLog, sortedLogs)
     : { isRisk: false, msg: "" };
 
+  const totalPages = Math.max(1, Math.ceil(sortedLogs.length / LOGS_PER_PAGE));
+  const pagedLogs = sortedLogs.slice(
+    (logPage - 1) * LOGS_PER_PAGE,
+    logPage * LOGS_PER_PAGE,
+  );
+
   return (
     <div style={styles.pageBackground}>
       <div style={styles.container}>
-        <h2 style={styles.title}>HỒ SƠ CÁ NHÂN</h2>
-
-        <div style={styles.badgeContainer}>
-          <span
-            style={{
-              ...styles.roleBadge,
-              ...(isPatient ? styles.badgePatient : styles.badgeStaff),
-            }}
-          >
-            {isPatient
-              ? `🧬 BỆNH NHÂN - ${profile?.fullName || ""}`
-              : "🩺 NHÂN VIÊN Y TẾ"}
-          </span>
-        </div>
-
-        <div style={styles.infoSection}>
-          <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Họ và tên</span>
-            <span style={styles.infoValue}>{profile?.fullName}</span>
-          </div>
-
-          {isPatient ? (
-            <div style={styles.infoRow}>
-              <span style={styles.infoLabel}>
-                {profile?.identifier && !profile.identifier.includes("@")
-                  ? "Số điện thoại"
-                  : "Địa chỉ Email"}
-              </span>
-              <span style={styles.infoValue}>
-                {profile?.identifier && !profile.identifier.includes("@")
-                  ? profile.identifier
-                  : profile?.email}
-              </span>
-            </div>
-          ) : (
-            <>
-              <div style={styles.infoRow}>
-                <span style={styles.infoLabel}>Tên đăng nhập</span>
-                <span style={styles.infoValue}>{profile?.identifier}</span>
+        {/* ===== ĐẦU HỒ SƠ - như đầu 1 bệnh án, không phải badge trang trí ===== */}
+        <header style={styles.header}>
+          <div style={styles.headerTopRow}>
+            {profile?.faceImageUrl ? (
+              <img src={profile.faceImageUrl} alt="" style={styles.avatar} />
+            ) : (
+              <div style={styles.avatarPlaceholder}>
+                {profile?.fullName?.charAt(0) || "?"}
               </div>
-              <div style={styles.infoRow}>
-                <span style={styles.infoLabel}>Địa chỉ Email</span>
-                <span style={styles.infoValue}>
-                  {profile?.email || "Chưa cập nhật"}
-                </span>
+            )}
+            <div>
+              <div style={styles.eyebrow}>
+                {isPatient ? "Hồ sơ bệnh nhân" : "Hồ sơ nhân viên y tế"}
               </div>
-            </>
-          )}
-
-          {/* Hiển thị thêm chức vụ hệ thống nếu KHÔNG phải là bệnh nhân */}
-          {!isPatient && (
-            <div style={{ ...styles.infoRow, borderBottom: "none" }}>
-              <span style={styles.infoLabel}>Chức vụ hệ thống</span>
-              <span
-                style={{
-                  ...styles.infoValue,
-                  color: "#0d9488",
-                  fontWeight: 700,
-                }}
-              >
-                {profile?.role === "DOCTOR"
-                  ? "Bác sĩ chuyên khoa"
-                  : profile?.role === "NURSE"
-                    ? "Điều dưỡng viên"
-                    : profile?.role}
-              </span>
-            </div>
-          )}
-
-          {/* Chỉ render phần cảnh báo và lịch sử đo nếu đối tượng là BỆNH NHÂN */}
-          {isPatient && (
-            <>
-              <div
-                style={{
-                  ...styles.weightHighlightCard,
-                  ...(latestRiskStatus.isRisk
-                    ? styles.weightHighlightCardDanger
-                    : styles.weightHighlightCardSafe),
-                }}
-              >
-                <span
-                  style={{
-                    ...styles.weightLabel,
-                    color: latestRiskStatus.isRisk ? "#b91c1c" : "#0f766e",
-                  }}
-                >
-                  {latestRiskStatus.isRisk
-                    ? "⚠️ CẢNH BÁO CÂN NẶNG BẤT THƯỜNG"
-                    : "Cân nặng đo gần nhất"}
+              <h1 style={styles.patientName}>{profile?.fullName}</h1>
+              <div style={styles.headerMetaRow}>
+                <span style={styles.headerMetaItem}>
+                  {isPatient
+                    ? profile?.identifier && !profile.identifier.includes("@")
+                      ? `Số điện thoại: ${profile.identifier}`
+                      : `Email: ${profile?.email}`
+                    : `Tài khoản: ${profile?.identifier}`}
                 </span>
-                <span
-                  style={{
-                    ...styles.weightValue,
-                    color: latestRiskStatus.isRisk ? "#b91c1c" : "#0d9488",
-                  }}
-                >
-                  {profile?.weightKg ? formatWeight(profile.weightKg) : "---"}{" "}
-                  <span style={{ fontSize: "20px", fontWeight: 600 }}>kg</span>
-                </span>
-                {latestRiskStatus.isRisk && (
-                  <div style={styles.riskAlertMessage}>
-                    {latestRiskStatus.msg}
-                  </div>
+                {!isPatient && (
+                  <>
+                    <span style={styles.metaDivider}>·</span>
+                    <span style={styles.headerMetaItem}>
+                      Chức danh nghề nghiệp:{" "}
+                      {profile?.role === "DOCTOR"
+                        ? "Bác sĩ chuyên khoa"
+                        : profile?.role === "NURSE"
+                          ? "Điều dưỡng viên"
+                          : profile?.role}
+                    </span>
+                  </>
+                )}
+                {isPatient && profile?.email && (
+                  <>
+                    <span style={styles.metaDivider}>·</span>
+                    <span style={styles.headerMetaItem}>
+                      Email: {profile.email}
+                    </span>
+                  </>
                 )}
               </div>
+            </div>
+          </div>
+        </header>
 
-              <button
-                onClick={handleToggleLogs}
+        {isPatient && (
+          <>
+            {/* ===== Ô ĐỌC SỐ - signature element, kiểu màn hình máy đo ===== */}
+            <div
+              style={{
+                ...styles.readout,
+                borderTopColor: latestRiskStatus.isRisk
+                  ? COLORS.risk
+                  : COLORS.safe,
+              }}
+            >
+              <div style={styles.readoutLabel}>
+                {latestRiskStatus.isRisk
+                  ? "Cảnh báo chỉ số bất thường"
+                  : "Chỉ số gần nhất"}
+              </div>
+              <div
                 style={{
-                  ...styles.btnLogToggle,
-                  ...(isLogBtnHovered ? styles.btnLogToggleHover : {}),
+                  ...styles.readoutValue,
+                  color: latestRiskStatus.isRisk ? COLORS.risk : COLORS.ink,
                 }}
-                onMouseEnter={() => setIsLogBtnHovered(true)}
-                onMouseLeave={() => setIsLogBtnHovered(false)}
               >
-                {showLogs ? "❌ ĐÓNG LỊCH SỬ ĐO" : "📊 XEM LỊCH SỬ ĐO CHI TIẾT"}
+                {profile?.weightKg ? formatWeight(profile.weightKg) : "—"}
+                <span style={styles.readoutUnit}>kg</span>
+              </div>
+              {latestRiskStatus.isRisk && (
+                <p style={styles.riskMessage}>{latestRiskStatus.msg}</p>
+              )}
+              <p style={styles.readoutFootnote}>
+                Hệ thống cảnh báo khi cân nặng thay đổi hơn 2kg trong 7 ngày,
+                hoặc hơn 5% trong 30 ngày so với 1 lần đo trước đó. Thay đổi
+                diễn ra chậm hơn (nhiều tháng) hiện chưa được theo dõi tự động.
+              </p>
+            </div>
+
+            {/* ===== LỊCH SỬ ĐO - danh sách kiểu bảng, đường kẻ mảnh ===== */}
+            <div style={styles.historySection}>
+              <button onClick={handleToggleLogs} style={styles.toggleLink}>
+                {showLogs ? "Ẩn lịch sử đo" : "Xem lịch sử đo"}
+                <span style={styles.toggleChevron}>
+                  {showLogs ? "︿" : "﹀"}
+                </span>
               </button>
 
               {showLogs && (
-                <div style={styles.logsTimelineWrapper}>
-                  {sortedLogs.length > 0 ? (
+                <div style={styles.historyList}>
+                  {sortedLogs.length === 0 ? (
+                    <p style={styles.emptyText}>
+                      Chưa có dữ liệu đo nào được ghi nhận.
+                    </p>
+                  ) : (
                     <>
-                      {sortedLogs
-                        .slice(
-                          (logPage - 1) * LOGS_PER_PAGE,
-                          logPage * LOGS_PER_PAGE,
-                        )
-                        .map((log) => {
-                          // Vẫn đánh giá rủi ro dựa trên TOÀN BỘ lịch sử,
-                          // chỉ cắt trang phần hiển thị
-                          const logRisk = evaluateLogRisk(log, sortedLogs);
-                          return (
-                            <div
-                              key={log.logId}
+                      <div style={styles.historyHeadRow}>
+                        <span>Thời điểm đo</span>
+                        <span>Cân nặng</span>
+                      </div>
+                      {pagedLogs.map((log) => {
+                        const logRisk = evaluateLogRisk(log, sortedLogs);
+                        return (
+                          <div key={log.logId} style={styles.historyRow}>
+                            <div style={styles.historyDateCol}>
+                              <span style={styles.historyDate}>
+                                {formatDate(log.measuredAt)}
+                              </span>
+                              <span style={styles.historyTime}>
+                                {new Date(log.measuredAt).toLocaleTimeString(
+                                  "vi-VN",
+                                )}
+                              </span>
+                              {logRisk.isRisk && (
+                                <span style={styles.inlineRiskTag}>
+                                  Nguy cơ · {logRisk.msg}
+                                </span>
+                              )}
+                            </div>
+                            <span
                               style={{
-                                ...styles.logCard,
-                                ...(logRisk.isRisk
-                                  ? styles.logCardDanger
-                                  : styles.logCardNormal),
+                                ...styles.historyWeight,
+                                color: logRisk.isRisk
+                                  ? COLORS.risk
+                                  : COLORS.ink,
                               }}
                             >
-                              <div>
-                                <div style={styles.logTimeTitle}>
-                                  {formatDate(log.measuredAt)}
-                                  {logRisk.isRisk && (
-                                    <span style={styles.dangerTag}>
-                                      Nguy cơ
-                                    </span>
-                                  )}
-                                </div>
-                                <div style={styles.logTimeSub}>
-                                  {new Date(log.measuredAt).toLocaleTimeString(
-                                    "vi-VN",
-                                  )}
-                                </div>
-                              </div>
-                              <div
-                                style={{
-                                  ...styles.logWeightNum,
-                                  color: logRisk.isRisk ? "#dc2626" : "#0f766e",
-                                }}
-                              >
-                                {formatWeight(log.weightKg)}{" "}
-                                <span
-                                  style={{ fontSize: "14px", fontWeight: 700 }}
-                                >
-                                  kg
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
+                              {formatWeight(log.weightKg)} kg
+                            </span>
+                          </div>
+                        );
+                      })}
 
-                      {/* PHÂN TRANG - chỉ hiện khi nhiều hơn 1 trang */}
                       {sortedLogs.length > LOGS_PER_PAGE && (
                         <div style={styles.paginationRow}>
                           <button
@@ -344,21 +301,16 @@ const Profile: React.FC = () => {
                             ← Trước
                           </button>
                           <span style={styles.pageIndicator}>
-                            Trang {logPage}/
-                            {Math.ceil(sortedLogs.length / LOGS_PER_PAGE)}
+                            Trang {logPage}/{totalPages}
                           </span>
                           <button
                             style={{
                               ...styles.pageBtn,
-                              ...(logPage >=
-                              Math.ceil(sortedLogs.length / LOGS_PER_PAGE)
+                              ...(logPage >= totalPages
                                 ? styles.pageBtnDisabled
                                 : {}),
                             }}
-                            disabled={
-                              logPage >=
-                              Math.ceil(sortedLogs.length / LOGS_PER_PAGE)
-                            }
+                            disabled={logPage >= totalPages}
                             onClick={() => setLogPage((p) => p + 1)}
                           >
                             Sau →
@@ -366,252 +318,271 @@ const Profile: React.FC = () => {
                         </div>
                       )}
                     </>
-                  ) : (
-                    <p style={styles.logStatusText}>
-                      📭 Chưa ghi nhận dữ liệu lịch sử cân đo nào.
-                    </p>
                   )}
                 </div>
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 };
 
+// ============================================================
+// TOKENS - bảng màu lâm sàng riêng, không dùng gradient teal mặc định
+// ============================================================
+const COLORS = {
+  ink: "#12211A",
+  paper: "#F5F6F3",
+  paperRaised: "#FFFFFF",
+  safe: "#0B6E4F",
+  risk: "#9A3324",
+  muted: "#6B7268",
+  hairline: "#D8DAD3",
+};
+
+const FONT_SANS =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+const FONT_NUMBER =
+  "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
 const styles: { [key: string]: React.CSSProperties } = {
   pageBackground: {
     width: "100%",
     minHeight: "calc(100vh - 80px)",
-    background: "var(--bg)",
+    background: COLORS.paper,
     display: "flex",
     justifyContent: "center",
-    alignItems: "flex-start",
-    padding: "40px 20px",
+    padding: "56px 20px",
     boxSizing: "border-box",
-    fontFamily: "'Segoe UI', Roboto, sans-serif",
-    overflowX: "hidden",
-    overflowY: "visible",
+    fontFamily: FONT_SANS,
   },
   container: {
-    background: "rgba(255, 255, 255, 0.92)",
-    backdropFilter: "blur(16px)",
     width: "100%",
-    maxWidth: "600px",
+    maxWidth: "620px",
     minWidth: 0,
-    borderRadius: "32px",
-    padding: "40px",
-    boxSizing: "border-box",
-    boxShadow: "0 20px 50px -12px rgba(15, 23, 42, 0.08)",
-    border: "1px solid rgba(255, 255, 255, 0.6)",
-    textAlign: "center",
   },
-  title: {
-    fontSize: "26px",
-    fontWeight: 900,
-    margin: "0 0 16px 0",
-    letterSpacing: "0.5px",
-    background: "linear-gradient(135deg, #0f766e 0%, #059669 100%)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
+  header: {
+    borderBottom: `1px solid ${COLORS.hairline}`,
+    paddingBottom: "20px",
+    marginBottom: "32px",
   },
-  badgeContainer: {
-    marginBottom: "30px",
+  headerTopRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
   },
-  roleBadge: {
-    padding: "6px 16px",
-    borderRadius: "20px",
+  avatar: {
+    width: "56px",
+    height: "56px",
+    borderRadius: "50%",
+    objectFit: "cover",
+    flexShrink: 0,
+  },
+  avatarPlaceholder: {
+    width: "56px",
+    height: "56px",
+    borderRadius: "50%",
+    background: COLORS.paper,
+    border: `1px solid ${COLORS.hairline}`,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "20px",
+    fontWeight: 700,
+    color: COLORS.muted,
+    flexShrink: 0,
+  },
+  eyebrow: {
     fontSize: "12px",
-    fontWeight: 800,
-    letterSpacing: "0.5px",
-  },
-  badgePatient: {
-    background: "rgba(13, 148, 136, 0.1)",
-    color: "#0f766e",
-    border: "1px solid rgba(13, 148, 136, 0.2)",
-  },
-  badgeStaff: {
-    background: "rgba(5, 150, 105, 0.1)",
-    color: "#059669",
-    border: "1px solid rgba(5, 150, 105, 0.2)",
-  },
-  infoSection: {
-    background: "#ffffff",
-    borderRadius: "20px",
-    padding: "24px",
-    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.02)",
-    border: "1px solid #f1f5f9",
-  },
-  infoRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "16px 0",
-    borderBottom: "1px solid #f1f5f9",
-    boxSizing: "border-box",
-  },
-  infoLabel: {
-    fontSize: "13px",
     fontWeight: 700,
-    color: "#64748b",
+    letterSpacing: "0.08em",
     textTransform: "uppercase",
-    letterSpacing: "0.5px",
+    color: COLORS.muted,
+    marginBottom: "8px",
   },
-  infoValue: {
-    fontSize: "15px",
-    fontWeight: 600,
-    color: "#0f172a",
-  },
-  weightHighlightCard: {
-    padding: "24px",
-    borderRadius: "20px",
-    marginTop: "24px",
-    textAlign: "center",
-    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.01)",
-    transition: "all 0.3s ease",
-  },
-  weightHighlightCardSafe: {
-    background: "linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)",
-    border: "1px solid rgba(13, 148, 136, 0.2)",
-  },
-  weightHighlightCardDanger: {
-    background: "linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)",
-    border: "2px solid #ef4444",
-  },
-  weightLabel: {
-    display: "block",
-    fontSize: "13px",
-    fontWeight: 800,
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-    marginBottom: "6px",
-  },
-  weightValue: {
-    fontSize: "42px",
-    fontWeight: 900,
-    lineHeight: 1,
-  },
-  riskAlertMessage: {
-    color: "#991b1b",
-    fontSize: "13px",
-    marginTop: "12px",
-    fontWeight: 600,
-    fontStyle: "italic",
-    lineHeight: 1.4,
-  },
-  btnLogToggle: {
-    width: "100%",
-    padding: "14px",
-    background: "transparent",
-    border: "2px solid #0d9488",
-    color: "#0d9488",
-    borderRadius: "14px",
-    fontSize: "14px",
-    fontWeight: 800,
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    fontFamily: "'Segoe UI', Roboto, sans-serif",
-    marginTop: "20px",
-    letterSpacing: "0.5px",
-  },
-  btnLogToggleHover: {
-    background: "rgba(13, 148, 136, 0.05)",
-    transform: "translateY(-0.5px)",
-  },
-  logsTimelineWrapper: {
-    marginTop: "24px",
-    borderTop: "2px dashed #e2e8f0",
-    paddingTop: "24px",
-    maxHeight: "350px",
-    overflowY: "auto",
-  },
-  logCard: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "16px 20px",
-    borderRadius: "14px",
-    marginBottom: "12px",
-    boxSizing: "border-box",
-  },
-  logCardNormal: {
-    background: "#f8fafc",
-    borderLeft: "4px solid #0d9488",
-    borderTop: "1px solid #e2e8f0",
-    borderRight: "1px solid #e2e8f0",
-    borderBottom: "1px solid #e2e8f0",
-  },
-  logCardDanger: {
-    background: "#fef2f2",
-    borderLeft: "4px solid #ef4444",
-    borderTop: "1px solid #fee2e2",
-    borderRight: "1px solid #fee2e2",
-    borderBottom: "1px solid #fee2e2",
-  },
-  logTimeTitle: {
-    fontSize: "14px",
+  patientName: {
+    fontSize: "30px",
     fontWeight: 700,
-    color: "#1e293b",
-    textAlign: "left",
+    color: COLORS.ink,
+    margin: "0 0 10px 0",
+    lineHeight: 1.15,
+    letterSpacing: "-0.01em",
+  },
+  headerMetaRow: {
     display: "flex",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: "8px",
+    fontSize: "15px",
+    color: COLORS.muted,
   },
-  dangerTag: {
-    fontSize: "11px",
-    padding: "2px 6px",
-    backgroundColor: "#ef4444",
-    color: "#ffffff",
-    borderRadius: "4px",
-    fontWeight: 700,
-  },
-  logTimeSub: {
-    fontSize: "12px",
-    fontWeight: 600,
-    color: "#94a3b8",
-    textAlign: "left",
-    marginTop: "2px",
-  },
-  logWeightNum: {
-    fontSize: "22px",
-    fontWeight: 900,
-  },
-  logStatusText: {
+  headerMetaItem: {
+    fontFamily: FONT_NUMBER,
     fontSize: "14px",
+  },
+  metaDivider: {
+    color: COLORS.hairline,
+  },
+  // ===== Ô ĐỌC SỐ =====
+  readout: {
+    background: COLORS.paperRaised,
+    border: `1px solid ${COLORS.hairline}`,
+    borderTop: "3px solid",
+    borderRadius: "8px",
+    padding: "28px 28px 24px",
+    marginBottom: "32px",
+    textAlign: "center",
+  },
+  readoutLabel: {
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    marginBottom: "10px",
+  },
+  readoutValue: {
+    fontFamily: FONT_NUMBER,
+    fontSize: "clamp(48px, 12vw, 64px)",
+    fontWeight: 700,
+    lineHeight: 1,
+    fontVariantNumeric: "tabular-nums",
+  },
+  readoutUnit: {
+    fontSize: "22px",
     fontWeight: 600,
-    color: "#64748b",
-    margin: "20px 0",
+    marginLeft: "8px",
+    color: COLORS.muted,
+  },
+  riskMessage: {
+    fontSize: "15px",
+    color: COLORS.risk,
+    marginTop: "14px",
+    marginBottom: 0,
+    marginLeft: "auto",
+    marginRight: "auto",
+    lineHeight: 1.5,
+    maxWidth: "44ch",
+  },
+  readoutFootnote: {
+    fontSize: "13px",
+    color: COLORS.muted,
+    marginTop: "16px",
+    marginBottom: 0,
+    lineHeight: 1.5,
+    paddingTop: "14px",
+    borderTop: `1px solid ${COLORS.hairline}`,
+    textAlign: "left",
+  },
+  // ===== LỊCH SỬ =====
+  historySection: {
+    borderTop: `1px solid ${COLORS.hairline}`,
+    paddingTop: "20px",
+  },
+  toggleLink: {
+    background: "none",
+    border: "none",
+    padding: 0,
+    fontFamily: FONT_SANS,
+    fontSize: "15px",
+    fontWeight: 600,
+    color: COLORS.safe,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+  },
+  toggleChevron: {
+    fontSize: "12px",
+  },
+  historyList: {
+    marginTop: "18px",
+  },
+  emptyText: {
+    fontSize: "15px",
+    color: COLORS.muted,
+    padding: "8px 0",
+  },
+  historyHeadRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: COLORS.muted,
+    paddingBottom: "10px",
+    borderBottom: `1px solid ${COLORS.hairline}`,
+  },
+  historyRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "16px",
+    padding: "14px 0",
+    borderBottom: `1px solid ${COLORS.hairline}`,
+  },
+  historyDateCol: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+    minWidth: 0,
+  },
+  historyDate: {
+    fontFamily: FONT_NUMBER,
+    fontSize: "15px",
+    color: COLORS.ink,
+    fontWeight: 600,
+  },
+  historyTime: {
+    fontFamily: FONT_NUMBER,
+    fontSize: "13px",
+    color: COLORS.muted,
+  },
+  inlineRiskTag: {
+    fontSize: "13px",
+    color: COLORS.risk,
+    marginTop: "4px",
+    maxWidth: "38ch",
+    lineHeight: 1.4,
+  },
+  historyWeight: {
+    fontFamily: FONT_NUMBER,
+    fontSize: "18px",
+    fontWeight: 700,
+    fontVariantNumeric: "tabular-nums",
+    whiteSpace: "nowrap",
   },
   paginationRow: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    gap: "16px",
-    marginTop: "16px",
+    gap: "20px",
+    marginTop: "20px",
     paddingTop: "16px",
-    borderTop: "1px solid #f1f5f9",
   },
   pageBtn: {
-    padding: "8px 16px",
-    borderRadius: "8px",
-    border: "1px solid #0d9488",
-    background: "#ffffff",
-    color: "#0d9488",
+    padding: "6px 14px",
+    borderRadius: "6px",
+    border: `1px solid ${COLORS.hairline}`,
+    background: COLORS.paperRaised,
+    color: COLORS.ink,
     fontSize: "13px",
-    fontWeight: 700,
+    fontWeight: 600,
     cursor: "pointer",
+    fontFamily: FONT_SANS,
   },
   pageBtnDisabled: {
-    borderColor: "#e2e8f0",
-    color: "#cbd5e1",
+    color: COLORS.muted,
     cursor: "not-allowed",
+    opacity: 0.5,
   },
   pageIndicator: {
+    fontFamily: FONT_NUMBER,
     fontSize: "13px",
-    fontWeight: 700,
-    color: "#475569",
+    color: COLORS.muted,
   },
   stateWrapper: {
     minHeight: "calc(100vh - 70px)",
@@ -619,23 +590,23 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    fontFamily: "'Segoe UI', Roboto, sans-serif",
-    background: "#f8fafc",
+    fontFamily: FONT_SANS,
+    background: COLORS.paper,
   },
   stateCard: {
-    background: "#fff5f5",
-    border: "1px solid #fee2e2",
-    color: "#b91c1c",
-    padding: "16px 24px",
-    borderRadius: "16px",
-    fontWeight: 600,
-    boxShadow: "0 4px 12px rgba(220, 38, 38, 0.02)",
+    color: COLORS.ink,
+    fontSize: "16px",
+  },
+  loadingText: {
+    marginTop: "14px",
+    color: COLORS.muted,
+    fontSize: "15px",
   },
   spinner: {
-    width: "32px",
-    height: "32px",
-    border: "4px solid #e2e8f0",
-    borderTop: "4px solid #0d9488",
+    width: "28px",
+    height: "28px",
+    border: `3px solid ${COLORS.hairline}`,
+    borderTop: `3px solid ${COLORS.safe}`,
     borderRadius: "50%",
     animation: "spin 1s linear infinite",
   },
