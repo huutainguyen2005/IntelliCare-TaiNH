@@ -146,6 +146,14 @@ export default function ForgotPassword() {
             <button type="submit" disabled={loading} style={styles.btnPrimary}>
               {loading ? "Đang gửi…" : "Gửi mã OTP"}
             </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              style={styles.btnSecondary}
+            >
+              ← Quay lại đăng nhập
+            </button>
           </form>
         )}
 

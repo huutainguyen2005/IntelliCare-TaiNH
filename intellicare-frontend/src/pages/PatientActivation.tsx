@@ -183,6 +183,14 @@ export default function PatientActivation() {
             <button type="submit" disabled={loading} style={styles.btnPrimary}>
               {loading ? "Đang tìm kiếm…" : "Tìm hồ sơ"}
             </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              style={styles.btnSecondary}
+            >
+              ← Quay lại đăng nhập
+            </button>
           </form>
         )}
 
@@ -275,6 +283,17 @@ export default function PatientActivation() {
                   style={styles.btnPrimary}
                 >
                   {loading ? "Đang xác thực…" : "Hoàn tất kích hoạt"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOtpSent(false);
+                    setFormData({ ...formData, otp: "" });
+                  }}
+                  style={styles.btnSecondary}
+                >
+                  ← Quay lại
                 </button>
               </>
             )}
@@ -400,6 +419,18 @@ const styles = {
     fontWeight: 600,
     cursor: "pointer",
     marginTop: "8px",
+    fontFamily: FONT_SANS,
+  },
+  btnSecondary: {
+    width: "100%",
+    padding: "10px",
+    background: "transparent",
+    color: COLORS.muted,
+    border: "none",
+    fontSize: "13px",
+    fontWeight: 600,
+    cursor: "pointer",
+    marginTop: "10px",
     fontFamily: FONT_SANS,
   },
   greetingBox: {
