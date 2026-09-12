@@ -50,7 +50,7 @@ public class SecurityConfig {
 
                 // 2. Phân quyền Endpoint
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/error", "/api/measurements/**", "/audio/**").permitAll()
+                        .requestMatchers("/auth/**", "/error", "/api/measurements/**", "/audio/**", "/api/latest", "/api/sensor").permitAll()
                         .anyRequest().authenticated()
                 )
 

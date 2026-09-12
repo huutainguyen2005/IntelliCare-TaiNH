@@ -11,7 +11,7 @@ import PatientManagement from "./pages/PatientManagement";
 import AdminDashboard from "./pages/AdminDashboard";
 import PatientActivation from "./pages/PatientActivation";
 import ForgotPassword from "./pages/ForgotPassword";
-
+import ScannerXiaomi from "./pages/ScannerXiaomi";
 // "kiosk"  -> máy quét tại trạm cân: CHỈ hiện /scanner, fullscreen, không có Navbar
 // "web"    -> web app cho bệnh nhân/nhân viên: KHÔNG có /scanner
 // Mặc định "web" nếu không set biến môi trường (an toàn cho local dev / build cũ)
@@ -43,15 +43,16 @@ function useKioskFullscreen() {
 }
 
 function KioskApp() {
-  useKioskFullscreen();
+    useKioskFullscreen();
 
-  return (
-    <Routes>
-      <Route path="/scanner" element={<Scanner />} />
-      {/* Bất kỳ đường dẫn nào khác trên Kiosk đều bị ép về /scanner */}
-      <Route path="*" element={<Navigate to="/scanner" replace />} />
-    </Routes>
-  );
+    return (
+        <Routes>
+            {/* Sửa <Scanner /> thành <ScannerXiaomi /> ở đây */}
+            <Route path="/scanner" element={<ScannerXiaomi />} />
+
+            <Route path="*" element={<Navigate to="/scanner" replace />} />
+        </Routes>
+    );
 }
 
 function WebApp() {
@@ -65,7 +66,7 @@ function WebApp() {
         <Route path="/login" element={<Login />} />
         <Route path="/activate" element={<PatientActivation />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-
+          <Route path="/scanner" element={<ScannerXiaomi />} />
         <Route
           path="/profile"
           element={
