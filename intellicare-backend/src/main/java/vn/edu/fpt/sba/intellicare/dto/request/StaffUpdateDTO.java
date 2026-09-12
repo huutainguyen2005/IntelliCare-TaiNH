@@ -8,5 +8,6 @@ public record StaffUpdateDTO(
         Boolean gender,           // null = không đổi
         Integer managerId,        // null = không đổi
         String password,          // null/rỗng = không đổi mật khẩu
-        String email               // null = không đổi
+        String email,               // null = không đổi
+        Integer schoolId            // null = không đổi - chỉ có ý nghĩa khi role = TEACHER
 ) {}

@@ -13,7 +13,8 @@ public record StaffResponseDTO(
         Boolean gender,
         String email,
         Boolean isActive,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Integer schoolId // Chỉ có giá trị khi role = TEACHER
 ) {
 
 }

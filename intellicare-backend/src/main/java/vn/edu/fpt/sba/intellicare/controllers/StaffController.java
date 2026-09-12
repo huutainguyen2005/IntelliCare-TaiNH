@@ -133,6 +133,16 @@ public class StaffController {
             staff.setGender(request.gender());
         }
 
+        if (request.role() == Role.TEACHER && request.schoolId() != null) {
+            School school = schoolRepository.findById(request.schoolId()).orElse(null);
+            if (school == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Không tìm thấy trường với ID: " + request.schoolId()
+                ));
+            }
+            staff.setSchool(school);
+        }
+
         if (request.email() != null) {
             staff.setEmail(request.email().isBlank() ? null : request.email().trim());
         }
@@ -218,7 +228,8 @@ public class StaffController {
                 s.getGender(),
                 s.getEmail(),
                 s.getIsActive(),
-                s.getCreatedAt()
+                s.getCreatedAt(),
+                s.getSchool() != null ? s.getSchool().getSchoolId() : null
         );
     }
 }

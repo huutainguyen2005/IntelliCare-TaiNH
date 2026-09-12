@@ -6,12 +6,18 @@ interface StaffItem {
   staffId: number;
   username: string;
   fullName: string;
-  role: "ADMIN" | "DOCTOR" | "NURSE";
+  role: "ADMIN" | "DOCTOR" | "NURSE" | "TEACHER";
   managerId: number | null;
   gender: boolean;
   email: string | null;
   isActive: boolean;
   createdAt: string | null;
+  schoolId: number | null;
+}
+
+interface SchoolOption {
+  schoolId: number;
+  name: string;
 }
 
 interface StaffFormState {
@@ -19,10 +25,11 @@ interface StaffFormState {
   username: string;
   password: string;
   fullName: string;
-  role: "DOCTOR" | "NURSE";
+  role: "DOCTOR" | "NURSE" | "TEACHER";
   gender: boolean;
   managerId: string;
   email: string;
+  schoolId: string; // Chỉ có ý nghĩa khi role = TEACHER
 }
 
 const emptyForm: StaffFormState = {
@@ -34,6 +41,7 @@ const emptyForm: StaffFormState = {
   gender: true,
   managerId: "",
   email: "",
+  schoolId: "",
 };
 
 export default function StaffManagement() {
@@ -62,15 +70,16 @@ export default function StaffManagement() {
   const [confirmToggleStaff, setConfirmToggleStaff] =
     useState<StaffItem | null>(null);
 
-  const [roleFilter, setRoleFilter] = useState<"ALL" | "DOCTOR" | "NURSE">(
-    "ALL",
-  );
+  const [roleFilter, setRoleFilter] = useState<
+    "ALL" | "DOCTOR" | "NURSE" | "TEACHER"
+  >("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "LOCKED">(
     "ALL",
   );
   const [genderFilter, setGenderFilter] = useState<"ALL" | "MALE" | "FEMALE">(
     "ALL",
   );
+  const [schools, setSchools] = useState<SchoolOption[]>([]);
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -106,6 +115,10 @@ export default function StaffManagement() {
 
   useEffect(() => {
     fetchStaffList();
+    axiosClient
+      .get("/api/schools")
+      .then((res) => setSchools(res.data))
+      .catch((error) => console.error("Lỗi khi tải danh sách trường:", error));
   }, []);
 
   const openCreateForm = () => {
@@ -123,6 +136,7 @@ export default function StaffManagement() {
       gender: staff.gender,
       managerId: staff.managerId ? String(staff.managerId) : "",
       email: staff.email || "",
+      schoolId: staff.schoolId ? String(staff.schoolId) : "",
     });
     setShowFormModal(true);
   };
@@ -161,6 +175,10 @@ export default function StaffManagement() {
           gender: form.gender,
           managerId: form.managerId ? Number(form.managerId) : null,
           email: form.email.trim() || null,
+          schoolId:
+            form.role === "TEACHER" && form.schoolId
+              ? Number(form.schoolId)
+              : null,
         });
 
         showModal("Tạo tài khoản thành công!", "success");
@@ -172,6 +190,10 @@ export default function StaffManagement() {
           gender: form.gender,
           managerId: form.managerId ? Number(form.managerId) : null,
           email: form.email.trim() || null,
+          schoolId:
+            form.role === "TEACHER" && form.schoolId
+              ? Number(form.schoolId)
+              : null,
         };
         if (form.password.trim()) {
           if (form.password.trim().length < 6) {
@@ -255,6 +277,7 @@ export default function StaffManagement() {
   const roleLabel = (role: string) => {
     if (role === "DOCTOR") return "Bác sĩ";
     if (role === "NURSE") return "Y tá / Điều dưỡng";
+    if (role === "TEACHER") return "Giáo viên";
     return role;
   };
 
@@ -293,6 +316,7 @@ export default function StaffManagement() {
             <option value="ALL">Tất cả vai trò</option>
             <option value="DOCTOR">Bác sĩ</option>
             <option value="NURSE">Y tá / Điều dưỡng</option>
+            <option value="TEACHER">Giáo viên</option>
           </select>
 
           <select
@@ -466,13 +490,35 @@ export default function StaffManagement() {
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    role: e.target.value as "DOCTOR" | "NURSE",
+                    role: e.target.value as "DOCTOR" | "NURSE" | "TEACHER",
                   })
                 }
               >
                 <option value="DOCTOR">Bác sĩ</option>
                 <option value="NURSE">Y tá / Điều dưỡng</option>
+                <option value="TEACHER">Giáo viên</option>
               </select>
+
+              {form.role === "TEACHER" && (
+                <>
+                  <label style={styles.label}>Trường</label>
+                  <select
+                    style={styles.input}
+                    value={form.schoolId}
+                    onChange={(e) =>
+                      setForm({ ...form, schoolId: e.target.value })
+                    }
+                    required
+                  >
+                    <option value="">-- Chọn trường --</option>
+                    {schools.map((sc) => (
+                      <option key={sc.schoolId} value={sc.schoolId}>
+                        {sc.name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
 
               <label style={styles.label}>Giới tính</label>
               <select
