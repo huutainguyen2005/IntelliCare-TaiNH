@@ -25,5 +25,9 @@ public record StaffCreateDTO(
 
         Integer managerId, // Không bắt buộc - id của Admin/Doctor quản lý trực tiếp
 
-        String email // Không bắt buộc - nhưng cần có để dùng chức năng "Quên mật khẩu"
+        String email, // Không bắt buộc - nhưng cần có để dùng chức năng "Quên mật khẩu"
+
+        // Chỉ có ý nghĩa khi role = TEACHER - xác định giáo viên thuộc trường
+        // nào. Bỏ trống với DOCTOR/NURSE.
+        Integer schoolId
 ) {}

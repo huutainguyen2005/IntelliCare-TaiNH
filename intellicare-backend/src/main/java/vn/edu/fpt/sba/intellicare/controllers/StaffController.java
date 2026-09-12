@@ -11,7 +11,9 @@ import vn.edu.fpt.sba.intellicare.dto.request.StaffCreateDTO;
 import vn.edu.fpt.sba.intellicare.dto.request.StaffUpdateDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.StaffResponseDTO;
 import vn.edu.fpt.sba.intellicare.entities.Staff;
+import vn.edu.fpt.sba.intellicare.entities.School;
 import vn.edu.fpt.sba.intellicare.enums.Role;
+import vn.edu.fpt.sba.intellicare.repositories.SchoolRepository;
 import vn.edu.fpt.sba.intellicare.repositories.StaffRepository;
 
 import java.util.List;
@@ -33,6 +35,7 @@ import java.util.Map;
 public class StaffController {
 
     private final StaffRepository staffRepository;
+    private final SchoolRepository schoolRepository;
     private final PasswordEncoder passwordEncoder;
 
     @GetMapping
@@ -82,6 +85,17 @@ public class StaffController {
             Staff manager = staffRepository.findById(request.managerId())
                     .orElse(null);
             staff.setManager(manager);
+        }
+
+        // Chỉ có ý nghĩa khi tạo TEACHER - gán trường quản lý trực tiếp
+        if (request.role() == Role.TEACHER && request.schoolId() != null) {
+            School school = schoolRepository.findById(request.schoolId()).orElse(null);
+            if (school == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Không tìm thấy trường với ID: " + request.schoolId()
+                ));
+            }
+            staff.setSchool(school);
         }
 
         staff = staffRepository.save(staff);
