@@ -81,9 +81,12 @@ public class AuthController {
 
         // CHẶN BRUTE-FORCE
         if (loginAttemptService.isBlocked(identifier)) {
+            long remainingSeconds = loginAttemptService.getRemainingLockSeconds(identifier);
+            long remainingMinutes = (remainingSeconds + 59) / 60; // làm tròn lên
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(
                     "errorCode", "TOO_MANY_ATTEMPTS",
-                    "message", "Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau ít phút."
+                    "message", "Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau khoảng " + remainingMinutes + " phút.",
+                    "retryAfterSeconds", remainingSeconds
             ));
         }
 
@@ -185,9 +188,12 @@ public class AuthController {
 
         // CHẶN BRUTE-FORCE: kiểm tra ngay từ đầu, trước khi làm bất kỳ việc gì khác
         if (loginAttemptService.isBlocked(identifier)) {
+            long remainingSeconds = loginAttemptService.getRemainingLockSeconds(identifier);
+            long remainingMinutes = (remainingSeconds + 59) / 60; // làm tròn lên
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(
                     "errorCode", "TOO_MANY_ATTEMPTS",
-                    "message", "Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau ít phút."
+                    "message", "Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau khoảng " + remainingMinutes + " phút.",
+                    "retryAfterSeconds", remainingSeconds
             ));
         }
 

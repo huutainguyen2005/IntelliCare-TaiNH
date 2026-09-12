@@ -13,11 +13,14 @@ export default function Navbar() {
   }
 
   const isAdmin = user?.role === "ADMIN";
+  const isTeacher = user?.role === "TEACHER";
+  const isIndividual = user?.role === "INDIVIDUAL";
 
   const handleLogout = () => {
+    const wasIndividual = isIndividual;
     logout();
     setIsMenuOpen(false);
-    navigate("/login");
+    navigate(wasIndividual ? "/individual/auth" : "/login");
   };
 
   const closeMenu = () => setIsMenuOpen(false);
@@ -38,7 +41,7 @@ export default function Navbar() {
 
         {/* MENU TRÊN DESKTOP */}
         <div className="nav-links-desktop">
-          {!isAdmin && isAuthenticated && (
+          {!isAdmin && !isTeacher && !isIndividual && isAuthenticated && (
             <>
               {(user?.role === "DOCTOR" || user?.role === "NURSE") && (
                 <Link to="/dashboard" style={styles.navItem}>
@@ -50,6 +53,16 @@ export default function Navbar() {
               </Link>
             </>
           )}
+          {isTeacher && (
+            <Link to="/school/roll-call" style={styles.navItem}>
+              Điểm danh cân
+            </Link>
+          )}
+          {isIndividual && (
+            <Link to="/individual/home" style={styles.navItem}>
+              Cân nặng của tôi
+            </Link>
+          )}
           {isAdmin && (
             <>
               <Link to="/admin-dashboard" style={styles.navItem}>
@@ -60,6 +73,9 @@ export default function Navbar() {
               </Link>
               <Link to="/patient-management" style={styles.navItem}>
                 Quản lý Bệnh nhân
+              </Link>
+              <Link to="/school/management" style={styles.navItem}>
+                Quản lý Trường học
               </Link>
             </>
           )}
@@ -91,7 +107,7 @@ export default function Navbar() {
       {/* DROPDOWN MENU MOBILE: Điều khiển hoàn toàn bằng State isMenuOpen */}
       {isMenuOpen && (
         <div style={styles.mobileMenuDropdown}>
-          {!isAdmin && isAuthenticated && (
+          {!isAdmin && !isTeacher && !isIndividual && isAuthenticated && (
             <>
               {(user?.role === "DOCTOR" || user?.role === "NURSE") && (
                 <Link
@@ -110,6 +126,24 @@ export default function Navbar() {
                 Hồ sơ
               </Link>
             </>
+          )}
+          {isTeacher && (
+            <Link
+              to="/school/roll-call"
+              style={styles.navItemMobile}
+              onClick={closeMenu}
+            >
+              Điểm danh cân
+            </Link>
+          )}
+          {isIndividual && (
+            <Link
+              to="/individual/home"
+              style={styles.navItemMobile}
+              onClick={closeMenu}
+            >
+              Cân nặng của tôi
+            </Link>
           )}
           {isAdmin && (
             <>
@@ -133,6 +167,13 @@ export default function Navbar() {
                 onClick={closeMenu}
               >
                 Quản lý Bệnh nhân
+              </Link>
+              <Link
+                to="/school/management"
+                style={styles.navItemMobile}
+                onClick={closeMenu}
+              >
+                Quản lý Trường học
               </Link>
             </>
           )}

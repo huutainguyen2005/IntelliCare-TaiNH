@@ -2,8 +2,11 @@ package vn.edu.fpt.sba.intellicare.services.impl;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Policy;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -46,5 +49,33 @@ public class LoginAttemptService {
     public boolean isBlocked(String identifier) {
         AtomicInteger count = attemptsCache.getIfPresent(normalize(identifier));
         return count != null && count.get() >= MAX_ATTEMPTS;
+    }
+
+    /**
+     * Số giây còn lại tới khi được thử đăng nhập lại. Trả về 0 nếu không bị
+     * khóa (hoặc đã hết hạn khóa). Dùng Policy API có sẵn của Caffeine để
+     * lấy đúng "tuổi" thật của entry trong cache (thời gian tính từ lần
+     * SAI ĐẦU TIÊN, không phải lần sai gần nhất - xem giải thích trong
+     * recordFailedAttempt()).
+     */
+    public long getRemainingLockSeconds(String identifier) {
+        String key = normalize(identifier);
+        AtomicInteger count = attemptsCache.getIfPresent(key);
+        if (count == null || count.get() < MAX_ATTEMPTS) {
+            return 0;
+        }
+
+        Optional<Policy.FixedExpiration<String, AtomicInteger>> expirationPolicy =
+                attemptsCache.policy().expireAfterWrite();
+        if (expirationPolicy.isEmpty()) {
+            return 0;
+        }
+
+        OptionalLong ageSeconds = expirationPolicy.get().ageOf(key, TimeUnit.SECONDS);
+        if (ageSeconds.isEmpty()) {
+            return 0;
+        }
+
+        return Math.max(0, (WINDOW_MINUTES * 60) - ageSeconds.getAsLong());
     }
 }

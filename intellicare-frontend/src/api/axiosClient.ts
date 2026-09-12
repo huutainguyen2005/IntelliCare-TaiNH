@@ -17,9 +17,13 @@ axiosClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Kiosk/ESP32 gọi /api/measurements/** không có JWT (không đăng nhập) -
-    // gắn kèm khóa thiết bị để Backend chấp nhận request.
-    if (config.url?.includes("/api/measurements/")) {
+    // Kiosk/ESP32 gọi /api/measurements/** hoặc /api/school-measurements/**
+    // không có JWT (không đăng nhập) - gắn kèm khóa thiết bị để Backend
+    // chấp nhận request.
+    if (
+      config.url?.includes("/api/measurements/") ||
+      config.url?.includes("/api/school-measurements/")
+    ) {
       config.headers = config.headers || {};
       config.headers["X-Device-Key"] =
         import.meta.env.VITE_DEVICE_API_KEY || "";

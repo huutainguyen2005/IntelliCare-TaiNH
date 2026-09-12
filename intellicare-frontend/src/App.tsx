@@ -11,6 +11,10 @@ import PatientManagement from "./pages/PatientManagement";
 import AdminDashboard from "./pages/AdminDashboard";
 import PatientActivation from "./pages/PatientActivation";
 import ForgotPassword from "./pages/ForgotPassword";
+import ClassRollCall from "./pages/school/ClassRollCall";
+import SchoolManagement from "./pages/school/SchoolManagement";
+import IndividualAuth from "./pages/individual/IndividualAuth";
+import IndividualHome from "./pages/individual/IndividualHome";
 
 // "kiosk"  -> máy quét tại trạm cân: CHỈ hiện /scanner, fullscreen, không có Navbar
 // "web"    -> web app cho bệnh nhân/nhân viên: KHÔNG có /scanner
@@ -123,6 +127,44 @@ function WebApp() {
               <AdminDashboard />
             ) : (
               <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        {/* ===== TRƯỜNG MẦM NON ===== */}
+        {/* Giáo viên (và Admin) mới được vào trang điểm danh cân */}
+        <Route
+          path="/school/roll-call"
+          element={
+            isAuthenticated &&
+            (user?.role === "TEACHER" || user?.role === "ADMIN") ? (
+              <ClassRollCall />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        {/* CHỈ Admin mới được quản lý trường/lớp/học sinh */}
+        <Route
+          path="/school/management"
+          element={
+            isAuthenticated && user?.role === "ADMIN" ? (
+              <SchoolManagement />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        {/* ===== NGƯỜI DÙNG CÁ NHÂN - hoàn toàn tách biệt Bệnh viện/Trường ===== */}
+        <Route path="/individual/auth" element={<IndividualAuth />} />
+        <Route
+          path="/individual/home"
+          element={
+            isAuthenticated && user?.role === "INDIVIDUAL" ? (
+              <IndividualHome />
+            ) : (
+              <Navigate to="/individual/auth" replace />
             )
           }
         />

@@ -29,7 +29,10 @@ public class DeviceApiKeyFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        if (request.getRequestURI().startsWith("/api/measurements/")) {
+        boolean needsDeviceKey = request.getRequestURI().startsWith("/api/measurements/")
+                || request.getRequestURI().startsWith("/api/school-measurements/");
+
+        if (needsDeviceKey) {
             String provided = request.getHeader("X-Device-Key");
 
             if (provided == null || expectedKey == null || !expectedKey.equals(provided)) {

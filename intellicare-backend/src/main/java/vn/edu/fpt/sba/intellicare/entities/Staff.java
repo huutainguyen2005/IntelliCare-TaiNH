@@ -34,6 +34,13 @@ public class Staff {
     @Column(name = "role", length = 20, columnDefinition = "varchar(20)")
     private Role role;
 
+    // Chi co gia tri khi role = TEACHER - xac dinh giao vien nay thuoc
+    // truong nao (dung de gioi han: giao vien chi quan ly duoc lop/hoc
+    // sinh trong dung truong minh).
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "school_id", nullable = true)
+    private School school;
+
     @Column(name="gender", nullable = false)
     private Boolean gender;
 
