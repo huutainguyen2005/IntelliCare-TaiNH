@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
-import { COLORS, FONT_SANS, FONT_NUMBER } from "../theme";
 
 interface SessionData {
   sessionId: number;
@@ -52,6 +51,7 @@ export default function Session() {
   const handleStartWeighing = async () => {
     setIsSubmitting(true);
     setError("");
+
     try {
       const res = await axiosClient.post(
         `/api/workshop/sessions/${sessionId}/start-weighing`,
@@ -66,223 +66,119 @@ export default function Session() {
 
   if (error && !session) {
     return (
-      <div style={styles.pageBackground}>
-        <p style={{ color: COLORS.risk, fontFamily: FONT_SANS }}>{error}</p>
-      </div>
+      <main className="flex min-h-screen w-full items-center justify-center bg-paper px-4 py-6 text-center">
+        <p className="text-sm leading-6 text-risk" role="alert">
+          {error}
+        </p>
+      </main>
     );
   }
 
   if (!session) {
     return (
-      <div style={styles.pageBackground}>
-        <p style={{ color: COLORS.muted, fontFamily: FONT_SANS }}>
-          Đang tải…
-        </p>
-      </div>
+      <main className="flex min-h-screen w-full items-center justify-center bg-paper px-4 py-6 text-center">
+        <p className="text-sm text-muted">Đang tải…</p>
+      </main>
     );
   }
 
   return (
-    <div style={styles.pageBackground}>
-      <div style={styles.container}>
+    <main className="flex min-h-screen w-full items-center justify-center bg-paper px-4 py-6 sm:px-6 sm:py-10">
+      <div className="w-full max-w-[440px]">
         {session.status === "AwaitingStart" && (
-          <div style={styles.centerLayout}>
-            <p style={styles.eyebrow}>Xin chào</p>
-            <h1 style={styles.name}>{session.fullName}</h1>
-            <p style={styles.instructionSecondary}>
-              Vui lòng di chuyển tới trạm cân. Khi đã đứng lên bàn cân, bấm
-              nút bên dưới để bắt đầu đo.
+          <div className="text-center">
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-muted">
+              Xin chào
+            </p>
+            <h1 className="mb-4 break-words text-[clamp(26px,7vw,32px)] font-bold text-ink">
+              {session.fullName}
+            </h1>
+            <p className="mb-6 text-[15px] leading-6 text-muted">
+              Vui lòng di chuyển tới trạm cân. Khi đã đứng lên bàn cân, bấm nút
+              bên dưới để bắt đầu đo.
             </p>
             <button
               onClick={handleStartWeighing}
               disabled={isSubmitting}
-              style={styles.primaryButton}
+              className="min-h-12 w-full rounded-[10px] bg-safe px-4 py-4 text-base font-bold text-white transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-safe/30 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? "Đang xử lý…" : "Tôi đã sẵn sàng cân"}
             </button>
-            {error && <p style={styles.errorText}>{error}</p>}
+            {error && (
+              <p className="mt-3 text-[13px] leading-5 text-risk" role="alert">
+                {error}
+              </p>
+            )}
           </div>
         )}
 
         {session.status === "Pending" && (
-          <div style={styles.centerLayout}>
-            <div style={styles.pulseRing}>
-              <div style={styles.pulseDot} />
+          <div className="text-center">
+            <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-hairline">
+              <div className="h-7 w-7 rounded-full bg-safe animate-[spin_1.4s_infinite_ease-in-out]" />
             </div>
-            <h1 style={styles.instruction}>Đang đo…</h1>
-            <p style={styles.instructionSecondary}>
+            <h1 className="mb-2 text-[clamp(24px,6vw,30px)] font-bold text-ink">
+              Đang đo…
+            </h1>
+            <p className="text-[15px] leading-6 text-muted">
               Vui lòng đứng yên trên bàn cân, nhìn thẳng về phía trước.
             </p>
           </div>
         )}
 
         {session.status === "Completed" && (
-          <div style={styles.centerLayout}>
-            <p style={styles.eyebrow}>Kết quả của bạn</p>
+          <div className="text-center">
+            <p className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-muted">
+              Kết quả của bạn
+            </p>
 
-            <div style={styles.resultGrid}>
-              <div style={styles.resultCell}>
-                <div style={styles.resultLabel}>Cân nặng</div>
-                <div style={styles.resultValue}>
+            <div className="mb-3 grid grid-cols-1 gap-3 min-[380px]:grid-cols-2">
+              <div className="rounded-[10px] border border-hairline bg-paper-raised p-4 sm:p-[18px]">
+                <div className="mb-1.5 text-xs font-bold uppercase tracking-[0.04em] text-muted">
+                  Cân nặng
+                </div>
+                <div className="font-number text-[32px] font-bold text-ink leading-tight">
                   {session.weightKg?.toFixed(1)}
-                  <span style={styles.resultUnit}>kg</span>
+                  <span className="ml-1 text-[15px] font-semibold text-muted">
+                    kg
+                  </span>
                 </div>
               </div>
-              <div style={styles.resultCell}>
-                <div style={styles.resultLabel}>Chiều cao</div>
-                <div style={styles.resultValue}>
+
+              <div className="rounded-[10px] border border-hairline bg-paper-raised p-4 sm:p-[18px]">
+                <div className="mb-1.5 text-xs font-bold uppercase tracking-[0.04em] text-muted">
+                  Chiều cao
+                </div>
+                <div className="font-number text-[32px] font-bold text-ink leading-tight">
                   {session.heightCm?.toFixed(0)}
-                  <span style={styles.resultUnit}>cm</span>
+                  <span className="ml-1 text-[15px] font-semibold text-muted">
+                    cm
+                  </span>
                 </div>
               </div>
             </div>
 
             {session.bmi != null && (
-              <div style={styles.bmiBox}>
-                <div style={styles.resultLabel}>Chỉ số BMI</div>
-                <div style={styles.bmiValue}>{session.bmi.toFixed(1)}</div>
-                <div style={styles.bmiTag}>{bmiLabel(session.bmi)}</div>
+              <div className="mb-5 rounded-[10px] border border-hairline border-t-[3px] border-t-safe bg-paper-raised p-5">
+                <div className="mb-1.5 text-xs font-bold uppercase tracking-[0.04em] text-muted">
+                  Chỉ số BMI
+                </div>
+                <div className="font-number text-[40px] font-bold leading-tight text-ink">
+                  {session.bmi.toFixed(1)}
+                </div>
+                <div className="mt-1 text-sm font-semibold text-safe">
+                  {bmiLabel(session.bmi)}
+                </div>
               </div>
             )}
 
-            <p style={styles.emailNote}>
-              Kết quả đã được gửi tới <b>{session.email}</b>
+            <p className="break-words text-[13px] leading-5 text-muted">
+              Kết quả đã được gửi tới{" "}
+              <b className="font-semibold text-ink">{session.email}</b>
             </p>
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }
-
-const styles: { [key: string]: React.CSSProperties } = {
-  pageBackground: {
-    width: "100%",
-    minHeight: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: COLORS.paper,
-    fontFamily: FONT_SANS,
-    padding: "20px",
-    boxSizing: "border-box",
-  },
-  container: { width: "100%", maxWidth: "440px" },
-  centerLayout: { textAlign: "center" },
-  eyebrow: {
-    fontSize: "12px",
-    fontWeight: 700,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
-    color: COLORS.muted,
-    marginBottom: "8px",
-  },
-  name: {
-    fontSize: "clamp(26px, 6vw, 32px)",
-    fontWeight: 700,
-    color: COLORS.ink,
-    margin: "0 0 16px 0",
-  },
-  instruction: {
-    fontSize: "clamp(24px, 5vw, 30px)",
-    fontWeight: 700,
-    color: COLORS.ink,
-    margin: "0 0 10px 0",
-  },
-  instructionSecondary: {
-    fontSize: "15px",
-    color: COLORS.muted,
-    margin: "0 0 24px 0",
-    lineHeight: 1.5,
-  },
-  primaryButton: {
-    width: "100%",
-    padding: "16px",
-    background: COLORS.safe,
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "10px",
-    fontSize: "16px",
-    fontWeight: 700,
-    cursor: "pointer",
-    fontFamily: FONT_SANS,
-  },
-  errorText: {
-    color: COLORS.risk,
-    fontSize: "13px",
-    marginTop: "14px",
-  },
-  pulseRing: {
-    width: "72px",
-    height: "72px",
-    borderRadius: "50%",
-    border: `2px solid ${COLORS.hairline}`,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    margin: "0 auto 24px",
-  },
-  pulseDot: {
-    width: "28px",
-    height: "28px",
-    borderRadius: "50%",
-    background: COLORS.safe,
-    animation: "spin 1.4s infinite ease-in-out",
-  },
-  resultGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "12px",
-    marginBottom: "12px",
-  },
-  resultCell: {
-    background: COLORS.paperRaised,
-    border: `1px solid ${COLORS.hairline}`,
-    borderRadius: "10px",
-    padding: "18px",
-  },
-  resultLabel: {
-    fontSize: "12px",
-    fontWeight: 700,
-    letterSpacing: "0.04em",
-    textTransform: "uppercase",
-    color: COLORS.muted,
-    marginBottom: "6px",
-  },
-  resultValue: {
-    fontFamily: FONT_NUMBER,
-    fontSize: "32px",
-    fontWeight: 700,
-    color: COLORS.ink,
-  },
-  resultUnit: {
-    fontSize: "15px",
-    fontWeight: 600,
-    color: COLORS.muted,
-    marginLeft: "4px",
-  },
-  bmiBox: {
-    background: COLORS.paperRaised,
-    border: `1px solid ${COLORS.hairline}`,
-    borderTop: `3px solid ${COLORS.safe}`,
-    borderRadius: "10px",
-    padding: "20px",
-    marginBottom: "20px",
-  },
-  bmiValue: {
-    fontFamily: FONT_NUMBER,
-    fontSize: "40px",
-    fontWeight: 700,
-    color: COLORS.ink,
-  },
-  bmiTag: {
-    fontSize: "14px",
-    fontWeight: 600,
-    color: COLORS.safe,
-    marginTop: "4px",
-  },
-  emailNote: {
-    fontSize: "13px",
-    color: COLORS.muted,
-  },
-};

@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { useAdminAuth } from "../context/AdminAuthContext";
-import { COLORS, FONT_SANS } from "../theme";
 
 export default function AdminLogin() {
   const { isAuthenticated, login } = useAdminAuth();
@@ -20,6 +19,7 @@ export default function AdminLogin() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
     try {
       const res = await axiosClient.post("/auth/admin/login", {
         username: username.trim(),
@@ -37,116 +37,70 @@ export default function AdminLogin() {
   };
 
   return (
-    <div style={styles.pageBackground}>
-      <div style={styles.card}>
-        <div style={styles.eyebrow}>Quản trị</div>
-        <h1 style={styles.title}>Đăng nhập Admin</h1>
+    <main className="flex min-h-screen w-full items-center justify-center bg-paper px-4 py-6 sm:px-6 sm:py-10">
+      <section className="w-full max-w-[380px] rounded-xl border border-hairline bg-paper-raised p-7 sm:p-9">
+        <div className="mb-2 text-center text-xs font-bold uppercase tracking-[0.08em] text-muted">
+          Quản trị
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <label style={styles.label}>Tài khoản</label>
-          <input
-            style={styles.input}
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-          <label style={styles.label}>Mật khẩu</label>
-          <input
-            style={styles.input}
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <button type="submit" disabled={loading} style={styles.btnPrimary}>
+        <h1 className="mb-6 text-center text-[22px] font-bold text-ink sm:text-2xl">
+          Đăng nhập Admin
+        </h1>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label
+              htmlFor="username"
+              className="mb-1.5 block text-[13px] font-semibold text-muted"
+            >
+              Tài khoản
+            </label>
+            <input
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoComplete="username"
+              className="w-full rounded-lg border border-hairline bg-paper-raised px-3.5 py-3 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-safe focus:ring-2 focus:ring-safe/10"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="password"
+              className="mb-1.5 block text-[13px] font-semibold text-muted"
+            >
+              Mật khẩu
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              className="w-full rounded-lg border border-hairline bg-paper-raised px-3.5 py-3 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-safe focus:ring-2 focus:ring-safe/10"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-1 min-h-11 w-full rounded-lg bg-safe px-4 py-3 text-[15px] font-semibold text-white transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-safe/30 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
             {loading ? "Đang xử lý…" : "Đăng nhập"}
           </button>
         </form>
 
-        {error && <div style={styles.errorBox}>{error}</div>}
-      </div>
-    </div>
+        {error && (
+          <div
+            role="alert"
+            className="mt-4 rounded-lg border border-hairline bg-paper px-3 py-3 text-center text-sm leading-5 text-risk"
+          >
+            {error}
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
-
-const styles: { [key: string]: React.CSSProperties } = {
-  pageBackground: {
-    width: "100%",
-    minHeight: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: COLORS.paper,
-    fontFamily: FONT_SANS,
-    padding: "20px",
-    boxSizing: "border-box",
-  },
-  card: {
-    width: "100%",
-    maxWidth: "380px",
-    background: COLORS.paperRaised,
-    borderRadius: "12px",
-    border: `1px solid ${COLORS.hairline}`,
-    padding: "clamp(28px, 6vw, 36px)",
-    boxSizing: "border-box",
-  },
-  eyebrow: {
-    fontSize: "12px",
-    fontWeight: 700,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
-    color: COLORS.muted,
-    textAlign: "center",
-    marginBottom: "8px",
-  },
-  title: {
-    fontSize: "22px",
-    fontWeight: 700,
-    color: COLORS.ink,
-    textAlign: "center",
-    margin: "0 0 24px 0",
-  },
-  label: {
-    display: "block",
-    fontSize: "13px",
-    fontWeight: 600,
-    color: COLORS.muted,
-    marginBottom: "6px",
-    marginTop: "14px",
-  },
-  input: {
-    width: "100%",
-    padding: "11px 14px",
-    fontSize: "14px",
-    border: `1px solid ${COLORS.hairline}`,
-    borderRadius: "8px",
-    background: COLORS.paperRaised,
-    color: COLORS.ink,
-    boxSizing: "border-box",
-    fontFamily: FONT_SANS,
-    outline: "none",
-  },
-  btnPrimary: {
-    width: "100%",
-    padding: "13px",
-    border: "none",
-    borderRadius: "8px",
-    fontSize: "15px",
-    fontWeight: 600,
-    color: "#ffffff",
-    cursor: "pointer",
-    background: COLORS.safe,
-    marginTop: "22px",
-    fontFamily: FONT_SANS,
-  },
-  errorBox: {
-    color: COLORS.risk,
-    backgroundColor: COLORS.paper,
-    padding: "12px",
-    borderRadius: "8px",
-    marginTop: "16px",
-    textAlign: "center",
-    fontSize: "14px",
-    border: `1px solid ${COLORS.hairline}`,
-  },
-};

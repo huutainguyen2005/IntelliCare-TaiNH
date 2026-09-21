@@ -1,11 +1,44 @@
-* {
-  box-sizing: border-box;
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #12211a;
+  --color-paper: #f5f6f3;
+  --color-paper-raised: #ffffff;
+  --color-safe: #0b6e4f;
+  --color-risk: #9a3324;
+  --color-muted: #6b7268;
+  --color-hairline: #d8dad3;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-number:
+    Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-body {
-  margin: 0;
-  background: #f5f6f3;
-  -webkit-font-smoothing: antialiased;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
 }
 
 @keyframes spin {

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axiosClient from "../api/axiosClient";
 import { useAdminAuth } from "../context/AdminAuthContext";
-import { COLORS, FONT_SANS, FONT_NUMBER } from "../theme";
 
 interface DashboardStats {
   totalParticipants: number;
@@ -34,58 +33,99 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div style={styles.pageBackground}>
-      <div style={styles.container}>
-        <header style={styles.header}>
-          <div>
-            <div style={styles.eyebrow}>Xin chào, {username}</div>
-            <h1 style={styles.pageTitle}>Tổng quan Workshop</h1>
+    <main className="min-h-screen bg-paper px-4 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto w-full max-w-[700px]">
+        <header className="mb-7 flex flex-col gap-4 border-b border-hairline pb-[18px] sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <div className="mb-1.5 text-xs font-bold uppercase tracking-[0.08em] text-muted">
+              Xin chào, {username}
+            </div>
+            <h1 className="break-words text-2xl font-bold text-ink">
+              Tổng quan Workshop
+            </h1>
           </div>
-          <button style={styles.logoutButton} onClick={logout}>
+
+          <button
+            type="button"
+            onClick={logout}
+            className="min-h-11 w-full rounded-lg border border-risk bg-transparent px-4 py-2.5 text-[13px] font-semibold text-risk transition hover:bg-risk hover:text-white focus:outline-none focus:ring-2 focus:ring-risk/20 sm:w-auto"
+          >
             Đăng xuất
           </button>
         </header>
 
-        {error && <p style={{ color: COLORS.risk }}>{error}</p>}
+        {error && (
+          <p
+            className="mb-5 rounded-lg border border-hairline bg-paper-raised px-3 py-3 text-sm leading-5 text-risk"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
 
         {stats && (
           <>
-            <div style={styles.statsGrid}>
-              <div style={styles.statCell}>
-                <div style={styles.statLabel}>Tổng số người tham gia</div>
-                <div style={styles.statValue}>{stats.totalParticipants}</div>
+            <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 md:grid-cols-3">
+              <div className="rounded-lg border border-hairline bg-paper-raised p-4 sm:p-[18px]">
+                <div className="mb-2 text-xs font-semibold leading-5 text-muted">
+                  Tổng số người tham gia
+                </div>
+                <div className="font-number text-2xl font-bold text-ink">
+                  {stats.totalParticipants}
+                </div>
               </div>
-              <div style={styles.statCell}>
-                <div style={styles.statLabel}>Đã đo xong</div>
-                <div style={styles.statValue}>{stats.completedCount}</div>
+
+              <div className="rounded-lg border border-hairline bg-paper-raised p-4 sm:p-[18px]">
+                <div className="mb-2 text-xs font-semibold leading-5 text-muted">
+                  Đã đo xong
+                </div>
+                <div className="font-number text-2xl font-bold text-ink">
+                  {stats.completedCount}
+                </div>
               </div>
-              <div style={styles.statCell}>
-                <div style={styles.statLabel}>Đang chờ / đang đo</div>
-                <div style={styles.statValue}>{stats.pendingCount}</div>
+
+              <div className="rounded-lg border border-hairline bg-paper-raised p-4 sm:p-[18px]">
+                <div className="mb-2 text-xs font-semibold leading-5 text-muted">
+                  Đang chờ / đang đo
+                </div>
+                <div className="font-number text-2xl font-bold text-ink">
+                  {stats.pendingCount}
+                </div>
               </div>
             </div>
 
-            <h2 style={styles.sectionTitle}>Trung bình (những người đã đo)</h2>
-            <div style={styles.statsGrid}>
-              <div style={styles.statCell}>
-                <div style={styles.statLabel}>Cân nặng TB</div>
-                <div style={styles.statValue}>
+            <h2 className="mb-3 mt-7 text-[15px] font-bold text-ink">
+              Trung bình (những người đã đo)
+            </h2>
+
+            <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 md:grid-cols-3">
+              <div className="rounded-lg border border-hairline bg-paper-raised p-4 sm:p-[18px]">
+                <div className="mb-2 text-xs font-semibold leading-5 text-muted">
+                  Cân nặng TB
+                </div>
+                <div className="font-number text-2xl font-bold text-ink">
                   {stats.avgWeightKg != null
                     ? `${stats.avgWeightKg.toFixed(1)} kg`
                     : "—"}
                 </div>
               </div>
-              <div style={styles.statCell}>
-                <div style={styles.statLabel}>Chiều cao TB</div>
-                <div style={styles.statValue}>
+
+              <div className="rounded-lg border border-hairline bg-paper-raised p-4 sm:p-[18px]">
+                <div className="mb-2 text-xs font-semibold leading-5 text-muted">
+                  Chiều cao TB
+                </div>
+                <div className="font-number text-2xl font-bold text-ink">
                   {stats.avgHeightCm != null
                     ? `${stats.avgHeightCm.toFixed(0)} cm`
                     : "—"}
                 </div>
               </div>
-              <div style={styles.statCell}>
-                <div style={styles.statLabel}>BMI TB</div>
-                <div style={styles.statValue}>
+
+              <div className="rounded-lg border border-hairline bg-paper-raised p-4 sm:p-[18px]">
+                <div className="mb-2 text-xs font-semibold leading-5 text-muted">
+                  BMI TB
+                </div>
+                <div className="font-number text-2xl font-bold text-ink">
                   {stats.avgBmi != null ? stats.avgBmi.toFixed(1) : "—"}
                 </div>
               </div>
@@ -93,78 +133,6 @@ export default function AdminDashboard() {
           </>
         )}
       </div>
-    </div>
+    </main>
   );
 }
-
-const styles: { [key: string]: React.CSSProperties } = {
-  pageBackground: {
-    minHeight: "100vh",
-    background: COLORS.paper,
-    padding: "48px 20px",
-    fontFamily: FONT_SANS,
-    boxSizing: "border-box",
-  },
-  container: { maxWidth: "700px", margin: "0 auto" },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    borderBottom: `1px solid ${COLORS.hairline}`,
-    paddingBottom: "18px",
-    marginBottom: "28px",
-    gap: "16px",
-    flexWrap: "wrap",
-  },
-  eyebrow: {
-    fontSize: "12px",
-    fontWeight: 700,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
-    color: COLORS.muted,
-    marginBottom: "6px",
-  },
-  pageTitle: { fontSize: "24px", fontWeight: 700, color: COLORS.ink, margin: 0 },
-  logoutButton: {
-    padding: "9px 18px",
-    background: "transparent",
-    color: COLORS.risk,
-    border: `1px solid ${COLORS.risk}`,
-    borderRadius: "8px",
-    fontSize: "13px",
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: FONT_SANS,
-  },
-  sectionTitle: {
-    fontSize: "15px",
-    fontWeight: 700,
-    color: COLORS.ink,
-    margin: "28px 0 12px 0",
-  },
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-    border: `1px solid ${COLORS.hairline}`,
-    borderRadius: "8px",
-    overflow: "hidden",
-  },
-  statCell: {
-    background: COLORS.paperRaised,
-    padding: "18px",
-    borderRight: `1px solid ${COLORS.hairline}`,
-    borderBottom: `1px solid ${COLORS.hairline}`,
-  },
-  statLabel: {
-    fontSize: "12px",
-    fontWeight: 600,
-    color: COLORS.muted,
-    marginBottom: "8px",
-  },
-  statValue: {
-    fontFamily: FONT_NUMBER,
-    fontSize: "24px",
-    fontWeight: 700,
-    color: COLORS.ink,
-  },
-};
