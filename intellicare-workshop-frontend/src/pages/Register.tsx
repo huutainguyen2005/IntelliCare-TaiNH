@@ -63,6 +63,7 @@ export default function Register() {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required
+              placeholder="VD: Nguyễn Văn A"
               autoComplete="name"
               className="w-full rounded-lg border border-hairline bg-paper-raised px-3.5 py-3 text-[15px] text-ink outline-none transition placeholder:text-muted/70 focus:border-safe focus:ring-2 focus:ring-safe/10"
             />
