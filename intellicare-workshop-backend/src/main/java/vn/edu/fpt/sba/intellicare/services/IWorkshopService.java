@@ -10,7 +10,7 @@ public interface IWorkshopService {
 
     WorkshopSessionResponseDTO startWeighing(Long sessionId);
 
-    void recordMeasurement(String deviceId, String rawHex, Double heightCm);
+    void recordMeasurement(String deviceId, String rawHex, Double heightCm, Double mockWeightKg);
 
     WorkshopSessionResponseDTO getStatus(Long sessionId);
 

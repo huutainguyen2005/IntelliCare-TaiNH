@@ -18,5 +18,6 @@ public interface WorkshopSessionMapper {
     @Mapping(target = "status", expression = "java(entity.getStatus().name())")
     @Mapping(target = "fullName", source = "participant.fullName")
     @Mapping(target = "email", source = "participant.email")
+    @Mapping(target = "completedAt", expression = "java(entity.getCompletedAt() != null ? entity.getCompletedAt().toString() : null)")
     WorkshopSessionResponseDTO toDTO(WorkshopSession entity);
 }

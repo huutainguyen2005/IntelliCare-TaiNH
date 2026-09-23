@@ -27,6 +27,13 @@ public class DeviceApiKeyFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
+        // Bỏ qua CORS preflight - OPTIONS không mang dữ liệu thật,
+        // Spring Security CORS handler sẽ xử lý headers riêng.
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         if (request.getRequestURI().startsWith("/api/workshop/measurements/")) {
             String provided = request.getHeader("X-Device-Key");
 

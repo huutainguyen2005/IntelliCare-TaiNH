@@ -7,5 +7,7 @@ public record WorkshopSessionResponseDTO(
         String email,
         Double weightKg,
         Double heightCm,
-        Double bmi
+        Double bmi,
+        Boolean emailSent,
+        String completedAt
 ) {}

@@ -60,6 +60,10 @@ public class SecurityConfig {
                                 "/api/workshop/register",
                                 "/api/workshop/sessions/**",
                                 "/api/workshop/measurements/**",
+                                // Swagger UI + OpenAPI docs — chỉ truy cập được khi SWAGGER_ENABLED=true
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
                                 "/error"
                         ).permitAll()
                         // Chỉ Admin mới xem được dashboard tổng quan

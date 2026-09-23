@@ -41,6 +41,13 @@ public class WorkshopServiceImpl implements IWorkshopService {
     private String scaleBindKey;
 
     /**
+     * Cho phép bypass giải mã BLE khi chưa có cân thật — CHỈ bật lúc test
+     * bằng Swagger. Set MOCK_BYPASS_ENABLED=false TRƯỚC ngày sự kiện.
+     */
+    @Value("${mock.bypass.enabled:false}")
+    private boolean mockBypassEnabled;
+
+    /**
      * Bước 1 - Sinh viên quét QR ở standee, điền Họ tên + Email trên điện
      * thoại của chính mình -> tạo participant + session (AwaitingStart).
      * Dùng Builder pattern để dựng entity (rõ ràng, không cần setter rời rạc).
@@ -92,7 +99,7 @@ public class WorkshopServiceImpl implements IWorkshopService {
      */
     @Override
     @Transactional
-    public void recordMeasurement(String deviceId, String rawHex, Double heightCm) {
+    public void recordMeasurement(String deviceId, String rawHex, Double heightCm, Double mockWeightKg) {
         Optional<WorkshopSession> sessionOpt = sessionRepository
                 .findTopByDeviceIdAndStatusOrderByCreatedAtDesc(deviceId, WorkshopSessionStatus.Pending);
         if (sessionOpt.isEmpty()) {
@@ -109,6 +116,33 @@ public class WorkshopServiceImpl implements IWorkshopService {
         if (rawHex == null || rawHex.isBlank()) {
             return;
         }
+
+        // ============================================================
+        // MOCK BYPASS — chỉ hoạt động khi MOCK_BYPASS_ENABLED=true
+        // Dùng để test full-flow (DB + Email) bằng Swagger/Postman
+        // mà không cần cân Xiaomi thật.
+        // ⚠️ TẮT (=false) TRƯỚC NGÀY SỰ KIỆN
+        // ============================================================
+        if (mockBypassEnabled && "MOCK".equalsIgnoreCase(rawHex)) {
+            if (mockWeightKg == null || mockWeightKg <= 0) {
+                log.warn("[MOCK] mockWeightKg bị thiếu hoặc không hợp lệ — bỏ qua.");
+                return;
+            }
+            log.info("[MOCK] Bypass BLE decrypt: deviceId={}, weight={}kg, height={}cm",
+                    deviceId, mockWeightKg, heightCm);
+            session.setWeightKg(mockWeightKg);
+            if (session.getHeightCm() != null && session.getHeightCm() > 0) {
+                double heightM = session.getHeightCm() / 100.0;
+                double bmi = mockWeightKg / (heightM * heightM);
+                session.setBmi(Math.round(bmi * 10.0) / 10.0);
+            }
+            session.setStatus(WorkshopSessionStatus.Completed);
+            session.setCompletedAt(OffsetDateTime.now());
+            sessionRepository.save(session);
+            sendResultEmailSafely(session);
+            return;
+        }
+        // ============================================================
 
         try {
             ScaleData decoded = xiaomiDecryptor.decrypt(rawHex, scaleMac, scaleBindKey);
