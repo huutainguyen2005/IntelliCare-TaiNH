@@ -56,8 +56,12 @@ public class WorkshopMeasurementController {
             Double heightCm = payload.get("heightCm") != null
                     ? Double.valueOf(String.valueOf(payload.get("heightCm")))
                     : null;
+            // Chỉ dùng khi MOCK_BYPASS_ENABLED=true và rawHex="MOCK" (test bằng Swagger)
+            Double mockWeightKg = payload.get("mockWeightKg") != null
+                    ? Double.valueOf(String.valueOf(payload.get("mockWeightKg")))
+                    : null;
 
-            workshopService.recordMeasurement(deviceId, rawHex, heightCm);
+            workshopService.recordMeasurement(deviceId, rawHex, heightCm, mockWeightKg);
             return ResponseEntity.ok(Map.of("message", "OK"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));

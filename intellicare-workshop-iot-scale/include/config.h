@@ -14,12 +14,12 @@
 #define DEVICE_ID "WORKSHOP_SCALE_01"
 #define API_RETRY_DELAY 3000
 
-// TODO: dien dung domain that sau khi deploy xong intellicare-workshop-backend
-#define SERVER_URL "https://<DIEN-DOMAIN-WORKSHOP-BACKEND-THAT-VAO-DAY>/api/workshop/measurements/submit"
+// Backend deploy tren Render: https://intellicare-tainh-1.onrender.com
+#define SERVER_URL "https://intellicare-tainh-1.onrender.com/api/workshop/measurements/submit"
 #define SUBMIT_PATH "/api/workshop/measurements/submit"
 
-// PHAI khop dung DEVICE_API_KEY da set trong .env cua intellicare-workshop-backend
-#define DEVICE_API_KEY "<DIEN-DEVICE-API-KEY-CUA-WORKSHOP-BACKEND-VAO-DAY>"
+// Khop dung DEVICE_API_KEY trong .env / bien moi truong Render cua backend
+#define DEVICE_API_KEY "J9cBoTajOm2GSu-53EyPLKzZRMsyWnYTgsM3bMP0mD4"
 
 // MAC cua can Xiaomi Mi Scale dung cho su kien Workshop
 #define TARGET_MAC "34:fa:1c:3b:a7:13"

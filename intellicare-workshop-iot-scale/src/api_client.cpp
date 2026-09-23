@@ -234,8 +234,8 @@ bool sendKioskData(String rawHex, float heightCm)
 
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-Device-Key", DEVICE_API_KEY);
-    http.setTimeout(30000);
-    http.setConnectTimeout(30000);
+    http.setTimeout(60000);        // 60s - du cho Render cold-start (~50s)
+    http.setConnectTimeout(60000); // 60s - du cho Render cold-start (~50s)
 
     StaticJsonDocument<200> doc;
     doc["deviceId"] = DEVICE_ID;
