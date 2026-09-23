@@ -231,11 +231,11 @@ function Assert-Equal($actual, $expected, $label) {
     }
 }
 
-Assert-Equal $s.status      "Completed"     "Status = Completed"
-Assert-Equal $s.weightKg    $MockWeightKg   "weightKg = $MockWeightKg"
-Assert-Equal $s.heightCm    $HeightCm       "heightCm = $HeightCm"
-Assert-Equal $s.bmi         $expectedBmi    "BMI = $expectedBmi"
-Assert-Equal $s.emailSent   "True"          "Email da duoc gui"
+Assert-Equal $s.status   "Completed"     "Status = Completed"
+Assert-Equal ([double]"$($s.weightKg)")  $MockWeightKg  "weightKg = $MockWeightKg kg"
+Assert-Equal ([double]"$($s.heightCm)")  $HeightCm      "heightCm = $HeightCm cm"
+Assert-Equal ([double]"$($s.bmi)")       $expectedBmi   "BMI = $expectedBmi"
+Assert-Equal "$($s.emailSent)".ToLower() "true"         "Email da duoc gui"
 
 Write-Host ""
 if ($allPassed) {
