@@ -116,7 +116,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="font-number text-2xl font-bold text-ink">
                   {stats.avgHeightCm != null
-                    ? `${stats.avgHeightCm.toFixed(0)} cm`
+                    ? `${stats.avgHeightCm.toFixed(1)} cm`
                     : "—"}
                 </div>
               </div>

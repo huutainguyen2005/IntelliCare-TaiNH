@@ -150,7 +150,7 @@ export default function Session() {
                   Chiều cao
                 </div>
                 <div className="font-number text-[32px] font-bold text-ink leading-tight">
-                  {session.heightCm?.toFixed(0)}
+                  {session.heightCm?.toFixed(1)}
                   <span className="ml-1 text-[15px] font-semibold text-muted">
                     cm
                   </span>
