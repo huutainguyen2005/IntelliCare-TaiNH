@@ -16,6 +16,9 @@ public interface WorkshopSessionRepository extends JpaRepository<WorkshopSession
 
     List<WorkshopSession> findByStatus(WorkshopSessionStatus status);
 
+    // New: get completed sessions ordered by completedAt desc for admin dashboard details
+    List<WorkshopSession> findByStatusOrderByCompletedAtDesc(WorkshopSessionStatus status);
+
     // Cho email worker - tim cac phien Completed nhung chua gui email
     // thanh cong (phong khi Resend loi tam thoi, retry duoc)
     List<WorkshopSession> findByStatusAndEmailSentFalse(WorkshopSessionStatus status);

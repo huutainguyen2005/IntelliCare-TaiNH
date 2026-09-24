@@ -221,4 +221,19 @@ public class WorkshopServiceImpl implements IWorkshopService {
 
         return new DashboardStatsDTO(total, completed, pending, avgWeight, avgHeight, avgBmi);
     }
+
+    @Override
+    public java.util.List<vn.edu.fpt.sba.intellicare.dto.response.ParticipantSessionDetailDTO> getDashboardDetails() {
+        java.util.List<WorkshopSession> sessions = sessionRepository.findByStatusOrderByCompletedAtDesc(WorkshopSessionStatus.Completed);
+        return sessions.stream()
+                .map(s -> new vn.edu.fpt.sba.intellicare.dto.response.ParticipantSessionDetailDTO(
+                        s.getParticipant() != null ? s.getParticipant().getFullName() : null,
+                        s.getParticipant() != null ? s.getParticipant().getEmail() : null,
+                        s.getCompletedAt() != null ? s.getCompletedAt().toString() : null,
+                        s.getWeightKg(),
+                        s.getHeightCm(),
+                        s.getBmi()
+                ))
+                .toList();
+    }
 }

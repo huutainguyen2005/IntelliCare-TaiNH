@@ -20,4 +20,9 @@ public class AdminDashboardController {
     public DashboardStatsDTO getDashboard() {
         return workshopService.getDashboardStats();
     }
+
+    @GetMapping("/dashboard/details")
+    public java.util.List<vn.edu.fpt.sba.intellicare.dto.response.ParticipantSessionDetailDTO> getDashboardDetails() {
+        return workshopService.getDashboardDetails();
+    }
 }
