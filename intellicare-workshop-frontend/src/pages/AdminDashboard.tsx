@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { useAdminAuth } from "../context/AdminAuthContext";
 
@@ -92,6 +93,15 @@ export default function AdminDashboard() {
                   {stats.pendingCount}
                 </div>
               </div>
+            </div>
+
+            <div className="mt-7 flex justify-end">
+              <Link
+                to="/admin/dashboard/details"
+                className="inline-flex items-center justify-center rounded-lg bg-safe px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-safe/25"
+              >
+                Xem chi tiết người tham gia
+              </Link>
             </div>
 
             <h2 className="mb-3 mt-7 text-[15px] font-bold text-ink">

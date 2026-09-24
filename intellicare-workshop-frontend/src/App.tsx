@@ -4,6 +4,7 @@ import Register from "./pages/Register";
 import Session from "./pages/Session";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminWorkshopDetails from "./pages/AdminWorkshopDetails";
 import NotFound from "./pages/errors/NotFound";
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -28,6 +29,14 @@ export default function App() {
             element={
               <AdminRoute>
                 <AdminDashboard />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/dashboard/details"
+            element={
+              <AdminRoute>
+                <AdminWorkshopDetails />
               </AdminRoute>
             }
           />
