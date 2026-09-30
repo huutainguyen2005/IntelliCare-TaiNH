@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { useAdminAuth } from "../context/AdminAuthContext";
 
@@ -94,6 +95,15 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            <div className="mt-7 flex justify-end">
+              <Link
+                to="/admin/dashboard/details"
+                className="inline-flex items-center justify-center rounded-lg bg-safe px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-safe/25"
+              >
+                Xem chi tiết người tham gia
+              </Link>
+            </div>
+
             <h2 className="mb-3 mt-7 text-[15px] font-bold text-ink">
               Trung bình (những người đã đo)
             </h2>
@@ -116,7 +126,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="font-number text-2xl font-bold text-ink">
                   {stats.avgHeightCm != null
-                    ? `${stats.avgHeightCm.toFixed(0)} cm`
+                    ? `${stats.avgHeightCm.toFixed(1)} cm`
                     : "—"}
                 </div>
               </div>
