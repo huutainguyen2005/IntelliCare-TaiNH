@@ -37,9 +37,11 @@ public class SecurityConfig {
     private String jwtSecretKey;
 
     private final DeviceApiKeyFilter deviceApiKeyFilter;
+    private final RateLimitFilter rateLimitFilter;
 
-    public SecurityConfig(DeviceApiKeyFilter deviceApiKeyFilter) {
+    public SecurityConfig(DeviceApiKeyFilter deviceApiKeyFilter, RateLimitFilter rateLimitFilter) {
         this.deviceApiKeyFilter = deviceApiKeyFilter;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
     @Bean
@@ -52,7 +54,7 @@ public class SecurityConfig {
                         // Công khai - ai cũng gọi được, không cần JWT/Device Key:
                         //   - /auth/admin/login          : Admin đăng nhập
                         //   - /api/workshop/register      : Sinh viên điền form (chính chủ)
-                        //   - /api/workshop/sessions/**    : Xem trạng thái/bắt đầu cân (theo sessionId ngẫu nhiên, khó đoán)
+                        //   - /api/workshop/sessions/**    : Xem trạng thái/bắt đầu cân (sessionId là UUID ngẫu nhiên - không dùng id tăng dần)
                         //   - /api/workshop/measurements/** : ESP32 gọi - được bảo vệ RIÊNG bằng
                         //                                      DeviceApiKeyFilter bên dưới, không phải permitAll thật sự "mở toang"
                         .requestMatchers(
@@ -70,6 +72,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/workshop/admin/**").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(deviceApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(
                         jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())

@@ -3,7 +3,7 @@
 
 export const NAME_MIN_LENGTH = 2;
 export const NAME_MAX_LENGTH = 100;
-export const EMAIL_MAX_LENGTH = 254; // giới hạn theo RFC 5321
+export const EMAIL_MAX_LENGTH = 150; // khớp độ dài cột email trong DB & validate backend
 
 // Chỉ cho phép chữ cái (có dấu tiếng Việt), khoảng trắng, dấu ' . -
 // Ký tự đầu phải là chữ cái; chặn số và ký tự đặc biệt.

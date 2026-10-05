@@ -10,4 +10,11 @@ public interface IXiaomiDecryptor {
      * chưa đủ dữ liệu - cần đợi frame tiếp theo).
      */
     ScaleData decrypt(String rawHex, String macAddress, String bindKeyHex) throws Exception;
+
+    /**
+     * Xóa dữ liệu đã gộp từ các frame trước (cân nặng, trở kháng...). Gọi khi bắt đầu /
+     * kết thúc 1 lần đo để cân nặng của người trước không "dính" sang người sau
+     * (decryptor chỉ tự reset khi timestamp của cân nhảy quá 60 giây).
+     */
+    void reset();
 }

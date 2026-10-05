@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
-import Logo from "../components/Logo";
 
 interface SessionData {
-  sessionId: number;
+  sessionId: string;
   status: "AwaitingStart" | "Pending" | "Completed";
   fullName: string;
   email: string;
@@ -67,7 +66,7 @@ export default function Session() {
 
   if (error && !session) {
     return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-paper px-4 py-6 text-center">
+      <main className="flex min-h-dvh w-full items-center justify-center bg-paper px-4 py-6 text-center">
         <p className="text-sm leading-6 text-risk" role="alert">
           {error}
         </p>
@@ -77,20 +76,17 @@ export default function Session() {
 
   if (!session) {
     return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-paper px-4 py-6 text-center">
+      <main className="flex min-h-dvh w-full items-center justify-center bg-paper px-4 py-6 text-center">
         <p className="text-sm text-muted">Đang tải…</p>
       </main>
     );
   }
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-paper px-4 py-6 sm:px-6 sm:py-10">
-      <div className="w-full max-w-[440px]">
+    <main className="flex min-h-dvh w-full items-center justify-center bg-paper px-4 py-6 sm:px-6 sm:py-10">
+      <div className="w-full max-w-[440px] md:max-w-[520px]">
         {session.status === "AwaitingStart" && (
           <div className="text-center">
-            <div className="mb-4">
-              <Logo />
-            </div>
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-muted">
               Xin chào
             </p>
@@ -121,7 +117,6 @@ export default function Session() {
             <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-hairline">
               <div className="h-7 w-7 rounded-full bg-safe animate-[spin_1.4s_infinite_ease-in-out]" />
             </div>
-
             <h1 className="mb-2 text-[clamp(24px,6vw,30px)] font-bold text-ink">
               Đang đo…
             </h1>
@@ -142,7 +137,7 @@ export default function Session() {
                 <div className="mb-1.5 text-xs font-bold uppercase tracking-[0.04em] text-muted">
                   Cân nặng
                 </div>
-                <div className="font-number text-[32px] font-bold text-ink leading-tight">
+                <div className="font-number text-[32px] font-bold text-ink leading-tight md:text-[38px]">
                   {session.weightKg?.toFixed(1)}
                   <span className="ml-1 text-[15px] font-semibold text-muted">
                     kg
@@ -154,7 +149,7 @@ export default function Session() {
                 <div className="mb-1.5 text-xs font-bold uppercase tracking-[0.04em] text-muted">
                   Chiều cao
                 </div>
-                <div className="font-number text-[32px] font-bold text-ink leading-tight">
+                <div className="font-number text-[32px] font-bold text-ink leading-tight md:text-[38px]">
                   {session.heightCm?.toFixed(1)}
                   <span className="ml-1 text-[15px] font-semibold text-muted">
                     cm
@@ -168,7 +163,7 @@ export default function Session() {
                 <div className="mb-1.5 text-xs font-bold uppercase tracking-[0.04em] text-muted">
                   Chỉ số BMI
                 </div>
-                <div className="font-number text-[40px] font-bold leading-tight text-ink">
+                <div className="font-number text-[40px] font-bold leading-tight text-ink md:text-[48px]">
                   {session.bmi.toFixed(1)}
                 </div>
                 <div className="mt-1 text-sm font-semibold text-safe">

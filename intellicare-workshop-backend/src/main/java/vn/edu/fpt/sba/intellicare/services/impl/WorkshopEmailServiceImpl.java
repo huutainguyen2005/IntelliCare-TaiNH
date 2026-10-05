@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 import vn.edu.fpt.sba.intellicare.services.IWorkshopEmailService;
 
 import java.io.IOException;
@@ -24,6 +25,9 @@ public class WorkshopEmailServiceImpl implements IWorkshopEmailService {
 
     @Value("${resend.from-email:onboarding@resend.dev}")
     private String fromEmail;
+
+    @Value("${email.logo-url:}")
+    private String logoUrl;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
@@ -75,13 +79,22 @@ public class WorkshopEmailServiceImpl implements IWorkshopEmailService {
         return "Béo phì";
     }
 
+    private String buildLogoHtml() {
+        if (logoUrl == null || logoUrl.isBlank()) {
+            return "";
+        }
+        return "<img src='" + HtmlUtils.htmlEscape(logoUrl.trim()) + "' alt='IntelliCare' height='56'"
+                + " style='height: 56px; width: auto; display: block; margin: 0 auto 12px auto; border: 0;'>";
+    }
+
     private String buildResultHtml(String fullName, double weightKg, double heightCm, double bmi) {
         return "<div style='font-family: Arial, sans-serif; padding: 24px; border: 1px solid #d8dad3; border-radius: 12px; max-width: 480px; margin: auto; background-color: #ffffff;'>"
                 + "<div style='text-align: center; margin-bottom: 20px;'>"
+                + buildLogoHtml()
                 + "<h2 style='color: #12211A; margin: 0;'>INTELLICARE WORKSHOP</h2>"
                 + "<p style='color: #6b7268; font-size: 12px; margin-top: 5px;'>KẾT QUẢ ĐO SỨC KHỎE</p>"
                 + "</div>"
-                + "<p style='color: #12211A; font-size: 15px;'>Xin chào <b>" + fullName + "</b>,</p>"
+                + "<p style='color: #12211A; font-size: 15px;'>Xin chào <b>" + HtmlUtils.htmlEscape(fullName) + "</b>,</p>"
                 + "<p style='color: #475569; font-size: 14px;'>Cảm ơn bạn đã tham gia trải nghiệm IntelliCare tại sự kiện. Dưới đây là kết quả đo của bạn:</p>"
                 + "<table style='width: 100%; border-collapse: collapse; margin: 20px 0;'>"
                 + row("Cân nặng", String.format("%.1f kg", weightKg))

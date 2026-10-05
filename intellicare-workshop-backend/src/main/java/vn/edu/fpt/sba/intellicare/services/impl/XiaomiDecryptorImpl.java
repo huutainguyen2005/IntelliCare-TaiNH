@@ -108,6 +108,19 @@ public class XiaomiDecryptorImpl implements IXiaomiDecryptor {
         return parseObjects(plaintext);
     }
 
+    @Override
+    public void reset() {
+        synchronized (session) {
+            session.profileId = null;
+            session.weightKg = null;
+            session.heartRate = null;
+            session.impedanceOhm = null;
+            session.impedanceLowOhm = null;
+            session.deviceTimestamp = null;
+            session.complete = false;
+        }
+    }
+
     // ------------------------------------------------------------------
     // 2. DUYỆT TLV
     // ------------------------------------------------------------------

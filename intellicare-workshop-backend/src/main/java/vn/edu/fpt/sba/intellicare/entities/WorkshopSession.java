@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import vn.edu.fpt.sba.intellicare.enums.WorkshopSessionStatus;
 
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "workshop_sessions")
@@ -19,6 +20,13 @@ public class WorkshopSession {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // Mã công khai (ngẫu nhiên, không đoán được) dùng trong URL /session/{publicId}.
+    // KHÔNG expose `id` tăng dần ra ngoài - tránh bị dò (IDOR).
+    // Cột cho phép null để ddl-auto=update thêm được vào bảng đã có dữ liệu cũ.
+    @Column(name = "public_id", unique = true, updatable = false)
+    @Builder.Default
+    private UUID publicId = UUID.randomUUID();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "participant_id", nullable = false)
@@ -50,6 +58,10 @@ public class WorkshopSession {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
+
+    // Thời điểm bấm "Sẵn sàng" (chuyển sang Pending). Dùng để hết hạn phiên đo bị bỏ dở.
+    @Column(name = "started_at")
+    private OffsetDateTime startedAt;
 
     @Column(name = "completed_at")
     private OffsetDateTime completedAt;

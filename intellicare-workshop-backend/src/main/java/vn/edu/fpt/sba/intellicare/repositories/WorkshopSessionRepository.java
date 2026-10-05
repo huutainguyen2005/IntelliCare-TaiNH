@@ -4,15 +4,25 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import vn.edu.fpt.sba.intellicare.entities.WorkshopSession;
 import vn.edu.fpt.sba.intellicare.enums.WorkshopSessionStatus;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface WorkshopSessionRepository extends JpaRepository<WorkshopSession, Long> {
+
+    Optional<WorkshopSession> findByPublicId(UUID publicId);
 
     Optional<WorkshopSession> findTopByDeviceIdAndStatusOrderByCreatedAtDesc(
             String deviceId, WorkshopSessionStatus status);
 
     Optional<WorkshopSession> findTopByDeviceIdOrderByCreatedAtDesc(String deviceId);
+
+    // Phiên đang đo CÒN HẠN (startedAt > cutoff) - phiên null/quá hạn bị loại tự động
+    Optional<WorkshopSession> findTopByDeviceIdAndStatusAndStartedAtAfterOrderByStartedAtDesc(
+            String deviceId, WorkshopSessionStatus status, OffsetDateTime cutoff);
+
+    List<WorkshopSession> findByDeviceIdAndStatus(String deviceId, WorkshopSessionStatus status);
 
     List<WorkshopSession> findByStatus(WorkshopSessionStatus status);
 

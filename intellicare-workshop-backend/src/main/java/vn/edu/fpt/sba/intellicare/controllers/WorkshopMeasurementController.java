@@ -8,6 +8,7 @@ import vn.edu.fpt.sba.intellicare.dto.request.RegisterParticipantDTO;
 import vn.edu.fpt.sba.intellicare.services.IWorkshopService;
 
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API công khai (không JWT) - sinh viên tự thao tác trên điện thoại của
@@ -30,7 +31,7 @@ public class WorkshopMeasurementController {
     }
 
     @PostMapping("/sessions/{sessionId}/start-weighing")
-    public ResponseEntity<?> startWeighing(@PathVariable Long sessionId) {
+    public ResponseEntity<?> startWeighing(@PathVariable UUID sessionId) {
         try {
             return ResponseEntity.ok(workshopService.startWeighing(sessionId));
         } catch (Exception e) {
@@ -39,7 +40,7 @@ public class WorkshopMeasurementController {
     }
 
     @GetMapping("/sessions/{sessionId}")
-    public ResponseEntity<?> getStatus(@PathVariable Long sessionId) {
+    public ResponseEntity<?> getStatus(@PathVariable UUID sessionId) {
         try {
             return ResponseEntity.ok(workshopService.getStatus(sessionId));
         } catch (Exception e) {

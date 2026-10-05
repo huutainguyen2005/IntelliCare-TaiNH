@@ -19,9 +19,11 @@ import vn.edu.fpt.sba.intellicare.services.IWorkshopService;
 import vn.edu.fpt.sba.intellicare.services.IXiaomiDecryptor;
 import vn.edu.fpt.sba.intellicare.services.ScaleData;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -48,18 +50,29 @@ public class WorkshopServiceImpl implements IWorkshopService {
     private boolean mockBypassEnabled;
 
     /**
+     * Phiên Pending (đã bấm "Sẵn sàng") chỉ có hiệu lực trong khoảng này. Quá hạn -> trả về
+     * AwaitingStart, tránh người bấm rồi bỏ đi "hút" kết quả cân của người sau.
+     */
+    @Value("${workshop.pending-timeout-seconds:60}")
+    private long pendingTimeoutSeconds;
+
+    /**
      * Bước 1 - Sinh viên quét QR ở standee, điền Họ tên + Email trên điện
      * thoại của chính mình -> tạo participant + session (AwaitingStart).
+     * Email đã tồn tại -> dùng lại participant cũ, chỉ tạo thêm session mới.
      * Dùng Builder pattern để dựng entity (rõ ràng, không cần setter rời rạc).
      */
     @Override
     @Transactional
     public WorkshopSessionResponseDTO register(RegisterParticipantDTO request) {
-        WorkshopParticipant participant = WorkshopParticipant.builder()
-                .fullName(request.fullName().trim())
-                .email(request.email().trim().toLowerCase())
-                .build();
-        participant = participantRepository.save(participant);
+        String email = request.email().trim().toLowerCase();
+        WorkshopParticipant participant = participantRepository
+                .findFirstByEmailOrderByIdAsc(email)
+                .orElseGet(() -> participantRepository.save(
+                        WorkshopParticipant.builder()
+                                .fullName(request.fullName().trim())
+                                .email(email)
+                                .build()));
 
         WorkshopSession session = WorkshopSession.builder()
                 .participant(participant)
@@ -78,17 +91,53 @@ public class WorkshopServiceImpl implements IWorkshopService {
      */
     @Override
     @Transactional
-    public WorkshopSessionResponseDTO startWeighing(Long sessionId) {
-        WorkshopSession session = sessionRepository.findById(sessionId)
+    public WorkshopSessionResponseDTO startWeighing(UUID sessionId) {
+        WorkshopSession session = sessionRepository.findByPublicId(sessionId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên đo"));
 
         if (session.getStatus() != WorkshopSessionStatus.AwaitingStart) {
             throw new RuntimeException("Phiên đo không ở trạng thái chờ xác nhận");
         }
 
+        // Mỗi cân chỉ cho 1 phiên đang đo CÒN HẠN. Cân không biết ai đang đứng trên nó,
+        // nên 2 phiên Pending cùng lúc => số đo của người này có thể ghi nhầm vào người kia.
+        OffsetDateTime now = OffsetDateTime.now();
+        boolean busy = false;
+        long waitSeconds = 0;
+        for (WorkshopSession other : sessionRepository
+                .findByDeviceIdAndStatus(session.getDeviceId(), WorkshopSessionStatus.Pending)) {
+            if (isPendingExpired(other, now)) {
+                expirePending(other); // người bấm trước đã bỏ đi -> trả về AwaitingStart
+            } else {
+                busy = true;
+                long remaining = Duration.between(now, other.getStartedAt().plusSeconds(pendingTimeoutSeconds)).getSeconds();
+                waitSeconds = Math.max(waitSeconds, Math.max(1, remaining));
+            }
+        }
+        if (busy) {
+            throw new RuntimeException(
+                    "Trạm cân đang có người khác đo, vui lòng thử lại sau khoảng " + waitSeconds + " giây.");
+        }
+
+        // Bắt đầu 1 lần đo mới: bỏ dữ liệu cân còn sót từ lần đo trước
+        xiaomiDecryptor.reset();
+
         session.setStatus(WorkshopSessionStatus.Pending);
+        session.setStartedAt(now);
         session = sessionRepository.save(session);
         return sessionMapper.toDTO(session);
+    }
+
+    private boolean isPendingExpired(WorkshopSession session, OffsetDateTime now) {
+        return session.getStartedAt() == null
+                || session.getStartedAt().plusSeconds(pendingTimeoutSeconds).isBefore(now);
+    }
+
+    /** Phiên Pending quá hạn -> về AwaitingStart để người đó bấm "Sẵn sàng" lại. */
+    private void expirePending(WorkshopSession session) {
+        session.setStatus(WorkshopSessionStatus.AwaitingStart);
+        session.setStartedAt(null);
+        sessionRepository.save(session);
     }
 
     /**
@@ -100,10 +149,13 @@ public class WorkshopServiceImpl implements IWorkshopService {
     @Override
     @Transactional
     public void recordMeasurement(String deviceId, String rawHex, Double heightCm, Double mockWeightKg) {
+        // Chỉ nhận số đo cho phiên Pending CÒN HẠN (bấm "Sẵn sàng" trong vòng pendingTimeoutSeconds)
+        OffsetDateTime cutoff = OffsetDateTime.now().minusSeconds(pendingTimeoutSeconds);
         Optional<WorkshopSession> sessionOpt = sessionRepository
-                .findTopByDeviceIdAndStatusOrderByCreatedAtDesc(deviceId, WorkshopSessionStatus.Pending);
+                .findTopByDeviceIdAndStatusAndStartedAtAfterOrderByStartedAtDesc(
+                        deviceId, WorkshopSessionStatus.Pending, cutoff);
         if (sessionOpt.isEmpty()) {
-            return; // Không có phiên đang chờ - bỏ qua, không báo lỗi (ESP32 gửi liên tục)
+            return; // Không có phiên đang chờ - bỏ qua, không báo lỗi
         }
 
         WorkshopSession session = sessionOpt.get();
@@ -161,6 +213,7 @@ public class WorkshopServiceImpl implements IWorkshopService {
             session.setStatus(WorkshopSessionStatus.Completed);
             session.setCompletedAt(OffsetDateTime.now());
             sessionRepository.save(session);
+            xiaomiDecryptor.reset(); // đo xong: không để cân nặng này dính sang người kế tiếp
 
             sendResultEmailSafely(session);
         } catch (Exception e) {
@@ -190,9 +243,16 @@ public class WorkshopServiceImpl implements IWorkshopService {
     }
 
     @Override
-    public WorkshopSessionResponseDTO getStatus(Long sessionId) {
-        WorkshopSession session = sessionRepository.findById(sessionId)
+    @Transactional
+    public WorkshopSessionResponseDTO getStatus(UUID sessionId) {
+        WorkshopSession session = sessionRepository.findByPublicId(sessionId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên đo"));
+
+        // Người dùng đang chờ mà phiên đã quá hạn -> tự trả về AwaitingStart để trang hiện lại nút bấm
+        if (session.getStatus() == WorkshopSessionStatus.Pending
+                && isPendingExpired(session, OffsetDateTime.now())) {
+            expirePending(session);
+        }
         return sessionMapper.toDTO(session);
     }
 
