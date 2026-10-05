@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { useAdminAuth } from "../context/AdminAuthContext";
+import Logo from "../components/Logo";
 
 interface DashboardStats {
   totalParticipants: number;
@@ -34,8 +35,12 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-paper px-4 py-6 sm:px-6 sm:py-10">
-      <div className="mx-auto w-full max-w-[700px]">
+    <main className="min-h-dvh bg-paper px-4 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto w-full max-w-[700px] lg:max-w-4xl">
+        <div className="mb-5">
+          <Logo />
+        </div>
+
         <header className="mb-7 flex flex-col gap-4 border-b border-hairline pb-[18px] sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <div className="mb-1.5 text-xs font-bold uppercase tracking-[0.08em] text-muted">
@@ -66,8 +71,8 @@ export default function AdminDashboard() {
 
         {stats && (
           <>
-            <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 md:grid-cols-3">
-              <div className="rounded-lg border border-hairline bg-paper-raised p-4 sm:p-[18px]">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              <div className="col-span-2 rounded-lg border border-hairline bg-paper-raised p-4 sm:p-[18px] md:col-span-1">
                 <div className="mb-2 text-xs font-semibold leading-5 text-muted">
                   Tổng số người tham gia
                 </div>
@@ -95,10 +100,10 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="mt-7 flex justify-end">
+            <div className="mt-7 flex sm:justify-end">
               <Link
                 to="/admin/dashboard/details"
-                className="inline-flex items-center justify-center rounded-lg bg-safe px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-safe/25"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-safe px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-safe/25 sm:w-auto"
               >
                 Xem chi tiết người tham gia
               </Link>
@@ -108,8 +113,8 @@ export default function AdminDashboard() {
               Trung bình (những người đã đo)
             </h2>
 
-            <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 md:grid-cols-3">
-              <div className="rounded-lg border border-hairline bg-paper-raised p-4 sm:p-[18px]">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              <div className="col-span-2 rounded-lg border border-hairline bg-paper-raised p-4 sm:p-[18px] md:col-span-1">
                 <div className="mb-2 text-xs font-semibold leading-5 text-muted">
                   Cân nặng TB
                 </div>

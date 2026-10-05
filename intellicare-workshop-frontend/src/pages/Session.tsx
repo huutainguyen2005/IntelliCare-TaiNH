@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
+import Logo from "../components/Logo";
 
 interface SessionData {
   sessionId: number;
@@ -87,6 +88,9 @@ export default function Session() {
       <div className="w-full max-w-[440px]">
         {session.status === "AwaitingStart" && (
           <div className="text-center">
+            <div className="mb-4">
+              <Logo />
+            </div>
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-muted">
               Xin chào
             </p>
@@ -117,6 +121,7 @@ export default function Session() {
             <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-hairline">
               <div className="h-7 w-7 rounded-full bg-safe animate-[spin_1.4s_infinite_ease-in-out]" />
             </div>
+
             <h1 className="mb-2 text-[clamp(24px,6vw,30px)] font-bold text-ink">
               Đang đo…
             </h1>

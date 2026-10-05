@@ -5,6 +5,7 @@ import { useAdminAuth } from "../context/AdminAuthContext";
 import { Icon } from "react-icons-kit";
 import { eyeOff } from "react-icons-kit/feather/eyeOff";
 import { eye } from "react-icons-kit/feather/eye";
+import Logo from "../components/Logo";
 
 export default function AdminLogin() {
   const { isAuthenticated, login } = useAdminAuth();
@@ -41,8 +42,12 @@ export default function AdminLogin() {
   };
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-paper px-4 py-6 sm:px-6 sm:py-10">
-      <section className="w-full max-w-[380px] rounded-xl border border-hairline bg-paper-raised p-7 sm:p-9">
+    <main className="flex min-h-dvh w-full items-center justify-center bg-paper px-4 py-6 sm:px-6 sm:py-10">
+      <section className="w-full max-w-[380px] rounded-xl border border-hairline bg-paper-raised p-5 min-[400px]:p-7 sm:p-9 md:max-w-[420px]">
+        <div className="mb-4">
+          <Logo />
+        </div>
+
         <div className="mb-2 text-center text-xs font-bold uppercase tracking-[0.08em] text-muted">
           Quản trị
         </div>
@@ -65,7 +70,7 @@ export default function AdminLogin() {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="username"
-              className="w-full rounded-lg border border-hairline bg-paper-raised px-3.5 py-3 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-safe focus:ring-2 focus:ring-safe/10"
+              className="w-full rounded-lg border border-hairline bg-paper-raised px-3.5 py-3 text-base text-ink outline-none transition placeholder:text-muted/70 focus:border-safe focus:ring-2 focus:ring-safe/10"
             />
           </div>
 
@@ -84,13 +89,13 @@ export default function AdminLogin() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full rounded-lg border border-hairline bg-paper-raised px-3.5 py-3 pr-11 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-safe focus:ring-2 focus:ring-safe/10"
+                className="w-full rounded-lg border border-hairline bg-paper-raised px-3.5 py-3 pr-12 text-base text-ink outline-none transition placeholder:text-muted/70 focus:border-safe focus:ring-2 focus:ring-safe/10"
               />
 
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition hover:text-ink"
+                className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-muted transition hover:text-ink"
                 aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
               >
                 <Icon icon={showPassword ? eyeOff : eye} size={18} />
