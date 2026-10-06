@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { useAdminAuth } from "../context/AdminAuthContext";
 import Logo from "../components/Logo";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 interface DashboardStats {
   totalParticipants: number;
@@ -33,6 +34,11 @@ export default function AdminDashboard() {
   const [nowMs, setNowMs] = useState(Date.now());
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
+  // Lưu lại người được chọn hủy lúc bấm nút - hộp thoại không bị đổi nội dung nếu dữ liệu làm mới
+  const [confirmTarget, setConfirmTarget] = useState<{
+    sessionId: string;
+    fullName: string;
+  } | null>(null);
 
   const fetchStats = async () => {
     try {
@@ -45,7 +51,9 @@ export default function AdminDashboard() {
 
   const fetchCurrent = async () => {
     try {
-      const res = await axiosClient.get("/api/workshop/admin/current-measuring");
+      const res = await axiosClient.get(
+        "/api/workshop/admin/current-measuring",
+      );
       // 204 No Content (trạm cân trống) -> res.data là chuỗi rỗng
       setCurrent(res.data ? res.data : null);
       setCurrentFetchedAt(Date.now());
@@ -75,23 +83,29 @@ export default function AdminDashboard() {
     return () => clearInterval(tickId);
   }, [current]);
 
-  const handleCancel = async () => {
+  const openCancelConfirm = () => {
     if (!current) return;
-    const ok = window.confirm(
-      `Hủy lượt đo của ${current.fullName}?\nNgười này sẽ phải bấm "Sẵn sàng" lại.`,
-    );
-    if (!ok) return;
+    setCancelError("");
+    setConfirmTarget({
+      sessionId: current.sessionId,
+      fullName: current.fullName,
+    });
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!confirmTarget) return;
 
     setCancelling(true);
     setCancelError("");
     try {
       await axiosClient.post(
-        `/api/workshop/admin/sessions/${current.sessionId}/cancel`,
+        `/api/workshop/admin/sessions/${confirmTarget.sessionId}/cancel`,
       );
     } catch (err: any) {
       setCancelError(err.response?.data?.message || "Không thể hủy lượt đo");
     } finally {
       setCancelling(false);
+      setConfirmTarget(null);
       fetchCurrent();
       fetchStats();
     }
@@ -194,11 +208,11 @@ export default function AdminDashboard() {
 
               <button
                 type="button"
-                onClick={handleCancel}
+                onClick={openCancelConfirm}
                 disabled={cancelling}
                 className="min-h-11 w-full shrink-0 rounded-lg border border-risk bg-transparent px-4 py-2.5 text-sm font-semibold text-risk transition hover:bg-risk hover:text-white focus:outline-none focus:ring-2 focus:ring-risk/20 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
-                {cancelling ? "Đang hủy…" : "Hủy lượt đo"}
+                Hủy lượt đo
               </button>
             </div>
           ) : (
@@ -293,6 +307,26 @@ export default function AdminDashboard() {
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        danger
+        loading={cancelling}
+        title="Hủy lượt đo?"
+        description={
+          <>
+            <strong className="font-semibold text-ink">
+              {confirmTarget?.fullName}
+            </strong>{" "}
+            sẽ phải bấm &quot;Sẵn sàng&quot; lại. Trạm cân sẽ trống ngay để
+            người tiếp theo đo.
+          </>
+        }
+        confirmLabel="Hủy lượt đo"
+        cancelLabel="Giữ lại"
+        onConfirm={handleConfirmCancel}
+        onCancel={() => setConfirmTarget(null)}
+      />
     </main>
   );
 }
