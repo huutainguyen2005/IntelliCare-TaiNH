@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
+import vn.edu.fpt.sba.intellicare.exceptions.EmailQuotaExceededException;
 import vn.edu.fpt.sba.intellicare.services.IWorkshopEmailService;
 
 import java.io.IOException;
@@ -13,6 +14,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +33,13 @@ public class WorkshopEmailServiceImpl implements IWorkshopEmailService {
     @Value("${email.logo-url:}")
     private String logoUrl;
 
+    // Khi Resend báo hết hạn mức, tạm ngừng gọi API trong chừng này phút rồi mới thử lại
+    @Value("${email.quota-pause-minutes:30}")
+    private long quotaPauseMinutes;
+
+    // Mốc thời gian được phép gọi lại Resend sau khi hết hạn mức (null = không bị tạm ngừng)
+    private volatile Instant quotaPausedUntil;
+
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
@@ -40,6 +49,12 @@ public class WorkshopEmailServiceImpl implements IWorkshopEmailService {
     @Override
     public void sendResultEmail(String toEmail, String fullName, double weightKg,
                                 double heightCm, double bmi) {
+        // Đang trong thời gian tạm ngừng vì hết hạn mức -> không gọi API vô ích
+        Instant pausedUntil = quotaPausedUntil;
+        if (pausedUntil != null && Instant.now().isBefore(pausedUntil)) {
+            throw new EmailQuotaExceededException("Resend đang tạm ngừng do hết hạn mức email");
+        }
+
         Map<String, Object> payload = Map.of(
                 "from", "IntelliCare Workshop <" + fromEmail + ">",
                 "to", List.of(toEmail),
@@ -61,17 +76,33 @@ public class WorkshopEmailServiceImpl implements IWorkshopEmailService {
             HttpResponse<String> response =
                     httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (response.statusCode() >= 400) {
-                log.error("Resend API lỗi [{}]: {}", response.statusCode(), response.body());
-                throw new RuntimeException(
-                        "Lỗi gửi email kết quả (status " + response.statusCode() + "): " + response.body());
-            }
+            handleResponse(response.statusCode(), response.body());
 
             log.info("Đã gửi email kết quả tới: {}", toEmail);
-        } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // chỉ đặt lại cờ ngắt khi THỰC SỰ bị ngắt
+            throw new RuntimeException("Gửi mail bị ngắt: " + e.getMessage());
+        } catch (IOException e) {
             throw new RuntimeException("Lỗi hệ thống khi gửi Mail: " + e.getMessage());
         }
+    }
+
+    /**
+     * Phân loại phản hồi của Resend:
+     * - 429 daily_quota_exceeded / monthly_quota_exceeded -> hết hạn mức: tạm ngừng + ném EmailQuotaExceededException
+     * - 429 rate_limit_exceeded (gửi quá nhanh) và các lỗi khác -> lỗi thường, thử lại sau
+     */
+    private void handleResponse(int statusCode, String body) {
+        if (statusCode < 400) {
+            return;
+        }
+        if (statusCode == 429 && body != null && body.contains("quota_exceeded")) {
+            quotaPausedUntil = Instant.now().plus(Duration.ofMinutes(quotaPauseMinutes));
+            log.warn("Resend báo hết hạn mức email, tạm ngừng gửi {} phút: {}", quotaPauseMinutes, body);
+            throw new EmailQuotaExceededException("Resend đã hết hạn mức email: " + body);
+        }
+        log.error("Resend API lỗi [{}]: {}", statusCode, body);
+        throw new RuntimeException("Lỗi gửi email kết quả (status " + statusCode + "): " + body);
     }
 
     private String bmiLabel(double bmi) {
