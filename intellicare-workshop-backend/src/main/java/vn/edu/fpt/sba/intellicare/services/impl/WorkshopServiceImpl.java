@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.intellicare.dto.request.RegisterParticipantDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.WorkshopSessionResponseDTO;
+import vn.edu.fpt.sba.intellicare.dto.response.CurrentMeasuringDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.DashboardStatsDTO;
 import vn.edu.fpt.sba.intellicare.entities.WorkshopParticipant;
 import vn.edu.fpt.sba.intellicare.entities.WorkshopSession;
@@ -295,5 +296,36 @@ public class WorkshopServiceImpl implements IWorkshopService {
                         s.getBmi()
                 ))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CurrentMeasuringDTO> getCurrentMeasuring() {
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime cutoff = now.minusSeconds(pendingTimeoutSeconds);
+        return sessionRepository
+                .findTopByStatusAndStartedAtAfterOrderByStartedAtDesc(WorkshopSessionStatus.Pending, cutoff)
+                .map(s -> new CurrentMeasuringDTO(
+                        s.getPublicId() != null ? s.getPublicId().toString() : null,
+                        s.getParticipant().getFullName(),
+                        s.getParticipant().getEmail(),
+                        s.getStartedAt().toInstant().toEpochMilli(),
+                        Math.max(0, Duration.between(s.getStartedAt(), now).getSeconds()),
+                        pendingTimeoutSeconds));
+    }
+
+    @Override
+    @Transactional
+    public void cancelMeasuring(UUID sessionId) {
+        WorkshopSession session = sessionRepository.findByPublicId(sessionId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên đo"));
+
+        if (session.getStatus() != WorkshopSessionStatus.Pending) {
+            throw new RuntimeException("Phiên này không còn ở trạng thái đang đo");
+        }
+
+        expirePending(session); // Pending -> AwaitingStart, người đó có thể bấm "Sẵn sàng" lại
+        xiaomiDecryptor.reset(); // bỏ dữ liệu cân còn dở của lượt vừa hủy
+        log.info("Admin da huy luot do cua sessionId={}", session.getId());
     }
 }

@@ -24,6 +24,10 @@ public interface WorkshopSessionRepository extends JpaRepository<WorkshopSession
 
     List<WorkshopSession> findByDeviceIdAndStatus(String deviceId, WorkshopSessionStatus status);
 
+    // Lượt đo đang diễn ra (mọi trạm) - dùng cho trang Admin
+    Optional<WorkshopSession> findTopByStatusAndStartedAtAfterOrderByStartedAtDesc(
+            WorkshopSessionStatus status, OffsetDateTime cutoff);
+
     List<WorkshopSession> findByStatus(WorkshopSessionStatus status);
 
     // New: get completed sessions ordered by completedAt desc for admin dashboard details

@@ -26,6 +26,8 @@ public class WorkshopEmailServiceImpl implements IWorkshopEmailService {
     @Value("${resend.from-email:onboarding@resend.dev}")
     private String fromEmail;
 
+    // URL https CÔNG KHAI của logo (email client không đọc được file cục bộ).
+    // VD: https://<ten-mien-vercel>/intellicare-logo-no-bg.png - để trống thì email chỉ hiện chữ.
     @Value("${email.logo-url:}")
     private String logoUrl;
 
@@ -83,8 +85,8 @@ public class WorkshopEmailServiceImpl implements IWorkshopEmailService {
         if (logoUrl == null || logoUrl.isBlank()) {
             return "";
         }
-        return "<img src='" + HtmlUtils.htmlEscape(logoUrl.trim()) + "' alt='IntelliCare' height='56'"
-                + " style='height: 56px; width: auto; display: block; margin: 0 auto 12px auto; border: 0;'>";
+        return "<img src='" + HtmlUtils.htmlEscape(logoUrl.trim()) + "' alt='IntelliCare' height='84'"
+                + " style='height: 84px; width: auto; display: block; margin: 0 auto 12px auto; border: 0;'>";
     }
 
     private String buildResultHtml(String fullName, double weightKg, double heightCm, double bmi) {
