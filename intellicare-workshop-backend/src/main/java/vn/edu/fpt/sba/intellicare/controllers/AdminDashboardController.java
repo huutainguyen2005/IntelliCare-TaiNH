@@ -1,335 +1,54 @@
-package vn.edu.fpt.sba.intellicare.services.impl;
+package vn.edu.fpt.sba.intellicare.controllers;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import vn.edu.fpt.sba.intellicare.dto.request.RegisterParticipantDTO;
-import vn.edu.fpt.sba.intellicare.exceptions.EmailQuotaExceededException;
-import vn.edu.fpt.sba.intellicare.dto.response.WorkshopSessionResponseDTO;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.sba.intellicare.dto.response.CurrentMeasuringDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.DashboardStatsDTO;
-import vn.edu.fpt.sba.intellicare.entities.WorkshopParticipant;
-import vn.edu.fpt.sba.intellicare.entities.WorkshopSession;
-import vn.edu.fpt.sba.intellicare.enums.WorkshopSessionStatus;
-import vn.edu.fpt.sba.intellicare.mapper.WorkshopSessionMapper;
-import vn.edu.fpt.sba.intellicare.repositories.WorkshopParticipantRepository;
-import vn.edu.fpt.sba.intellicare.repositories.WorkshopSessionRepository;
-import vn.edu.fpt.sba.intellicare.services.IWorkshopEmailService;
 import vn.edu.fpt.sba.intellicare.services.IWorkshopService;
-import vn.edu.fpt.sba.intellicare.services.IXiaomiDecryptor;
-import vn.edu.fpt.sba.intellicare.services.ScaleData;
 
-import java.time.Duration;
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.UUID;
 
-@Slf4j
-@Service
+@RestController
+@RequestMapping("/api/workshop/admin")
 @RequiredArgsConstructor
-public class WorkshopServiceImpl implements IWorkshopService {
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+public class AdminDashboardController {
 
-    private final WorkshopParticipantRepository participantRepository;
-    private final WorkshopSessionRepository sessionRepository;
-    private final WorkshopSessionMapper sessionMapper;
-    private final IXiaomiDecryptor xiaomiDecryptor;
-    private final IWorkshopEmailService emailService;
+    private final IWorkshopService workshopService;
 
-    @Value("${xiaomi.scale.mac}")
-    private String scaleMac;
-
-    @Value("${xiaomi.scale.bind-key}")
-    private String scaleBindKey;
-
-    /**
-     * Cho phép bypass giải mã BLE khi chưa có cân thật — CHỈ bật lúc test
-     * bằng Swagger. Set MOCK_BYPASS_ENABLED=false TRƯỚC ngày sự kiện.
-     */
-    @Value("${mock.bypass.enabled:false}")
-    private boolean mockBypassEnabled;
-
-    /**
-     * Phiên Pending (đã bấm "Sẵn sàng") chỉ có hiệu lực trong khoảng này. Quá hạn -> trả về
-     * AwaitingStart, tránh người bấm rồi bỏ đi "hút" kết quả cân của người sau.
-     */
-    @Value("${workshop.pending-timeout-seconds:60}")
-    private long pendingTimeoutSeconds;
-
-    /**
-     * Bước 1 - Sinh viên quét QR ở standee, điền Họ tên + Email trên điện
-     * thoại của chính mình -> tạo participant + session (AwaitingStart).
-     * Email đã tồn tại -> dùng lại participant cũ, chỉ tạo thêm session mới.
-     * Dùng Builder pattern để dựng entity (rõ ràng, không cần setter rời rạc).
-     */
-    @Override
-    @Transactional
-    public WorkshopSessionResponseDTO register(RegisterParticipantDTO request) {
-        String email = request.email().trim().toLowerCase();
-        WorkshopParticipant participant = participantRepository
-                .findFirstByEmailOrderByIdAsc(email)
-                .orElseGet(() -> participantRepository.save(
-                        WorkshopParticipant.builder()
-                                .fullName(request.fullName().trim())
-                                .email(email)
-                                .build()));
-
-        WorkshopSession session = WorkshopSession.builder()
-                .participant(participant)
-                .deviceId(request.deviceId().trim())
-                .status(WorkshopSessionStatus.AwaitingStart)
-                .build();
-        session = sessionRepository.save(session);
-
-        return sessionMapper.toDTO(session);
+    @GetMapping("/dashboard")
+    public DashboardStatsDTO getDashboard() {
+        return workshopService.getDashboardStats();
     }
 
-    /**
-     * Bước 2 - Sinh viên bấm "Tôi đã sẵn sàng cân" -> mở khóa cho trạm cân
-     * nhận dữ liệu (giống hệt cơ chế AwaitingStart -> Pending bên hệ thống
-     * Bệnh viện, tránh chốt nhầm nếu nhiều sinh viên xếp hàng gần nhau).
-     */
-    @Override
-    @Transactional
-    public WorkshopSessionResponseDTO startWeighing(UUID sessionId) {
-        WorkshopSession session = sessionRepository.findByPublicId(sessionId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên đo"));
-
-        if (session.getStatus() != WorkshopSessionStatus.AwaitingStart) {
-            throw new RuntimeException("Phiên đo không ở trạng thái chờ xác nhận");
-        }
-
-        // Mỗi cân chỉ cho 1 phiên đang đo CÒN HẠN. Cân không biết ai đang đứng trên nó,
-        // nên 2 phiên Pending cùng lúc => số đo của người này có thể ghi nhầm vào người kia.
-        OffsetDateTime now = OffsetDateTime.now();
-        boolean busy = false;
-        long waitSeconds = 0;
-        for (WorkshopSession other : sessionRepository
-                .findByDeviceIdAndStatus(session.getDeviceId(), WorkshopSessionStatus.Pending)) {
-            if (isPendingExpired(other, now)) {
-                expirePending(other); // người bấm trước đã bỏ đi -> trả về AwaitingStart
-            } else {
-                busy = true;
-                long remaining = Duration.between(now, other.getStartedAt().plusSeconds(pendingTimeoutSeconds)).getSeconds();
-                waitSeconds = Math.max(waitSeconds, Math.max(1, remaining));
-            }
-        }
-        if (busy) {
-            throw new RuntimeException(
-                    "Trạm cân đang có người khác đo, vui lòng thử lại sau khoảng " + waitSeconds + " giây.");
-        }
-
-        // Bắt đầu 1 lần đo mới: bỏ dữ liệu cân còn sót từ lần đo trước
-        xiaomiDecryptor.reset();
-
-        session.setStatus(WorkshopSessionStatus.Pending);
-        session.setStartedAt(now);
-        session = sessionRepository.save(session);
-        return sessionMapper.toDTO(session);
+    /** Ai đang đo trên cân? 204 No Content nếu trạm cân đang trống. */
+    @GetMapping("/current-measuring")
+    public ResponseEntity<CurrentMeasuringDTO> getCurrentMeasuring() {
+        return workshopService.getCurrentMeasuring()
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
-    private boolean isPendingExpired(WorkshopSession session, OffsetDateTime now) {
-        return session.getStartedAt() == null
-                || session.getStartedAt().plusSeconds(pendingTimeoutSeconds).isBefore(now);
-    }
-
-    /** Phiên Pending quá hạn -> về AwaitingStart để người đó bấm "Sẵn sàng" lại. */
-    private void expirePending(WorkshopSession session) {
-        session.setStatus(WorkshopSessionStatus.AwaitingStart);
-        session.setStartedAt(null);
-        sessionRepository.save(session);
-    }
-
-    /**
-     * Bước 3 - ESP32 gửi lên: chiều cao (VL53L1X, gửi liên tục) + gói BLE
-     * thô của cân Xiaomi (khi bắt được). Chỉ lấy weightKg + heightCm để
-     * tính BMI - KHÔNG dùng tới body composition (fat/water/muscle...) dù
-     * công nghệ đã hỗ trợ, đúng yêu cầu giữ Workshop đơn giản.
-     */
-    @Override
-    @Transactional
-    public void recordMeasurement(String deviceId, String rawHex, Double heightCm, Double mockWeightKg) {
-        // Chỉ nhận số đo cho phiên Pending CÒN HẠN (bấm "Sẵn sàng" trong vòng pendingTimeoutSeconds)
-        OffsetDateTime cutoff = OffsetDateTime.now().minusSeconds(pendingTimeoutSeconds);
-        Optional<WorkshopSession> sessionOpt = sessionRepository
-                .findTopByDeviceIdAndStatusAndStartedAtAfterOrderByStartedAtDesc(
-                        deviceId, WorkshopSessionStatus.Pending, cutoff);
-        if (sessionOpt.isEmpty()) {
-            return; // Không có phiên đang chờ - bỏ qua, không báo lỗi
-        }
-
-        WorkshopSession session = sessionOpt.get();
-
-        if (heightCm != null && heightCm > 0) {
-            session.setHeightCm(heightCm);
-            sessionRepository.save(session);
-        }
-
-        if (rawHex == null || rawHex.isBlank()) {
-            return;
-        }
-
-        // ============================================================
-        // MOCK BYPASS — chỉ hoạt động khi MOCK_BYPASS_ENABLED=true
-        // Dùng để test full-flow (DB + Email) bằng Swagger/Postman
-        // mà không cần cân Xiaomi thật.
-        // ⚠️ TẮT (=false) TRƯỚC NGÀY SỰ KIỆN
-        // ============================================================
-        if (mockBypassEnabled && "MOCK".equalsIgnoreCase(rawHex)) {
-            if (mockWeightKg == null || mockWeightKg <= 0) {
-                log.warn("[MOCK] mockWeightKg bị thiếu hoặc không hợp lệ — bỏ qua.");
-                return;
-            }
-            log.info("[MOCK] Bypass BLE decrypt: deviceId={}, weight={}kg, height={}cm",
-                    deviceId, mockWeightKg, heightCm);
-            session.setWeightKg(mockWeightKg);
-            if (session.getHeightCm() != null && session.getHeightCm() > 0) {
-                double heightM = session.getHeightCm() / 100.0;
-                double bmi = mockWeightKg / (heightM * heightM);
-                session.setBmi(Math.round(bmi * 10.0) / 10.0);
-            }
-            session.setStatus(WorkshopSessionStatus.Completed);
-            session.setCompletedAt(OffsetDateTime.now());
-            sessionRepository.save(session);
-            sendResultEmailSafely(session);
-            return;
-        }
-        // ============================================================
-
+    /** Hủy lượt đo đang chờ để người sau đo ngay (thay vì đợi hết hạn). */
+    @PostMapping("/sessions/{sessionId}/cancel")
+    public ResponseEntity<Map<String, String>> cancelMeasuring(@PathVariable UUID sessionId) {
         try {
-            ScaleData decoded = xiaomiDecryptor.decrypt(rawHex, scaleMac, scaleBindKey);
-            if (decoded == null || decoded.weightKg == null) {
-                return; // Gói BLE chưa đủ dữ liệu cân nặng - chờ gói tiếp theo
-            }
-
-            session.setWeightKg(decoded.weightKg);
-
-            if (session.getHeightCm() != null && session.getHeightCm() > 0) {
-                double heightM = session.getHeightCm() / 100.0;
-                double bmi = decoded.weightKg / (heightM * heightM);
-                session.setBmi(Math.round(bmi * 10.0) / 10.0);
-            }
-
-            session.setStatus(WorkshopSessionStatus.Completed);
-            session.setCompletedAt(OffsetDateTime.now());
-            sessionRepository.save(session);
-            xiaomiDecryptor.reset(); // đo xong: không để cân nặng này dính sang người kế tiếp
-
-            sendResultEmailSafely(session);
-        } catch (Exception e) {
-            log.error("Lỗi giải mã BLE Workshop: {}", e.getMessage());
+            workshopService.cancelMeasuring(sessionId);
+            return ResponseEntity.ok(Map.of("message", "Đã hủy lượt đo"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
-    /**
-     * Gửi email KHÔNG được để lỗi Resend làm hỏng cả transaction lưu kết
-     * quả cân (kết quả cân quan trọng hơn, phải lưu được dù email lỗi).
-     */
-    private void sendResultEmailSafely(WorkshopSession session) {
-        try {
-            emailService.sendResultEmail(
-                    session.getParticipant().getEmail(),
-                    session.getParticipant().getFullName(),
-                    session.getWeightKg(),
-                    session.getHeightCm() != null ? session.getHeightCm() : 0,
-                    session.getBmi() != null ? session.getBmi() : 0
-            );
-            session.setEmailSent(true);
-            sessionRepository.save(session);
-        } catch (EmailQuotaExceededException e) {
-            // Resend hết hạn mức: KHÔNG mất email - EmailRetryJob sẽ tự gửi bù khi hạn mức hồi lại
-            log.warn("Resend hết hạn mức - email của session {} sẽ được gửi bù tự động sau", session.getId());
-        } catch (Exception e) {
-            log.error("Gửi email kết quả thất bại (session {}): {}", session.getId(), e.getMessage());
-            // Không throw - EmailRetryJob sẽ thử lại sau
-        }
-    }
-
-    @Override
-    @Transactional
-    public WorkshopSessionResponseDTO getStatus(UUID sessionId) {
-        WorkshopSession session = sessionRepository.findByPublicId(sessionId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên đo"));
-
-        // Người dùng đang chờ mà phiên đã quá hạn -> tự trả về AwaitingStart để trang hiện lại nút bấm
-        if (session.getStatus() == WorkshopSessionStatus.Pending
-                && isPendingExpired(session, OffsetDateTime.now())) {
-            expirePending(session);
-        }
-        return sessionMapper.toDTO(session);
-    }
-
-    @Override
-    public DashboardStatsDTO getDashboardStats() {
-        long total = participantRepository.count();
-        long completed = sessionRepository.countByStatus(WorkshopSessionStatus.Completed);
-        long pending = sessionRepository.countByStatus(WorkshopSessionStatus.Pending)
-                + sessionRepository.countByStatus(WorkshopSessionStatus.AwaitingStart);
-
-        List<WorkshopSession> completedSessions = sessionRepository
-                .findByStatus(WorkshopSessionStatus.Completed);
-
-        Double avgWeight = completedSessions.stream()
-                .filter(s -> s.getWeightKg() != null)
-                .mapToDouble(WorkshopSession::getWeightKg)
-                .average().stream().boxed().findFirst().orElse(null);
-        Double avgHeight = completedSessions.stream()
-                .filter(s -> s.getHeightCm() != null)
-                .mapToDouble(WorkshopSession::getHeightCm)
-                .average().stream().boxed().findFirst().orElse(null);
-        Double avgBmi = completedSessions.stream()
-                .filter(s -> s.getBmi() != null)
-                .mapToDouble(WorkshopSession::getBmi)
-                .average().stream().boxed().findFirst().orElse(null);
-
-        return new DashboardStatsDTO(total, completed, pending, avgWeight, avgHeight, avgBmi);
-    }
-
-    @Override
+    @GetMapping("/dashboard/details")
     public java.util.List<vn.edu.fpt.sba.intellicare.dto.response.ParticipantSessionDetailDTO> getDashboardDetails() {
-        java.util.List<WorkshopSession> sessions = sessionRepository.findByStatusOrderByCompletedAtDesc(WorkshopSessionStatus.Completed);
-        return sessions.stream()
-                .map(s -> new vn.edu.fpt.sba.intellicare.dto.response.ParticipantSessionDetailDTO(
-                        s.getParticipant() != null ? s.getParticipant().getFullName() : null,
-                        s.getParticipant() != null ? s.getParticipant().getEmail() : null,
-                        s.getCompletedAt() != null ? s.getCompletedAt().toString() : null,
-                        s.getWeightKg(),
-                        s.getHeightCm(),
-                        s.getBmi()
-                ))
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Optional<CurrentMeasuringDTO> getCurrentMeasuring() {
-        OffsetDateTime now = OffsetDateTime.now();
-        OffsetDateTime cutoff = now.minusSeconds(pendingTimeoutSeconds);
-        return sessionRepository
-                .findTopByStatusAndStartedAtAfterOrderByStartedAtDesc(WorkshopSessionStatus.Pending, cutoff)
-                .map(s -> new CurrentMeasuringDTO(
-                        s.getPublicId() != null ? s.getPublicId().toString() : null,
-                        s.getParticipant().getFullName(),
-                        s.getParticipant().getEmail(),
-                        s.getStartedAt().toInstant().toEpochMilli(),
-                        Math.max(0, Duration.between(s.getStartedAt(), now).getSeconds()),
-                        pendingTimeoutSeconds));
-    }
-
-    @Override
-    @Transactional
-    public void cancelMeasuring(UUID sessionId) {
-        WorkshopSession session = sessionRepository.findByPublicId(sessionId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên đo"));
-
-        if (session.getStatus() != WorkshopSessionStatus.Pending) {
-            throw new RuntimeException("Phiên này không còn ở trạng thái đang đo");
-        }
-
-        expirePending(session); // Pending -> AwaitingStart, người đó có thể bấm "Sẵn sàng" lại
-        xiaomiDecryptor.reset(); // bỏ dữ liệu cân còn dở của lượt vừa hủy
-        log.info("Admin da huy luot do cua sessionId={}", session.getId());
+        return workshopService.getDashboardDetails();
     }
 }

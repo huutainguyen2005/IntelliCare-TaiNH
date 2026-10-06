@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.intellicare.dto.request.RegisterParticipantDTO;
+import vn.edu.fpt.sba.intellicare.exceptions.EmailQuotaExceededException;
 import vn.edu.fpt.sba.intellicare.dto.response.WorkshopSessionResponseDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.CurrentMeasuringDTO;
 import vn.edu.fpt.sba.intellicare.dto.response.DashboardStatsDTO;
@@ -237,9 +238,12 @@ public class WorkshopServiceImpl implements IWorkshopService {
             );
             session.setEmailSent(true);
             sessionRepository.save(session);
+        } catch (EmailQuotaExceededException e) {
+            // Resend hết hạn mức: KHÔNG mất email - EmailRetryJob sẽ tự gửi bù khi hạn mức hồi lại
+            log.warn("Resend hết hạn mức - email của session {} sẽ được gửi bù tự động sau", session.getId());
         } catch (Exception e) {
             log.error("Gửi email kết quả thất bại (session {}): {}", session.getId(), e.getMessage());
-            // Không throw - để lần retry sau xử lý tiếp
+            // Không throw - EmailRetryJob sẽ thử lại sau
         }
     }
 
