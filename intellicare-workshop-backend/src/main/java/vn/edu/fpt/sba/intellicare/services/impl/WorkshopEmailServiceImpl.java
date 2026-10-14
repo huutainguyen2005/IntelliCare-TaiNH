@@ -134,12 +134,15 @@ public class WorkshopEmailServiceImpl implements IWorkshopEmailService {
                 + row("Chiều cao", String.format("%.1f cm", heightCm))
                 + row("Chỉ số BMI", String.format("%.1f (%s)", bmi, bmiLabel(bmi)))
                 + "</table>"
-                + "<p style='color: #9A3324; font-size: 12px;'>Lưu ý: đây là kết quả tham khảo tại sự kiện demo, không thay thế chẩn đoán y tế chuyên môn.</p>"
                 + "<p style='color: #475569; font-size: 14px; line-height: 1.6; margin-top: 20px;'>"
                 + "Bạn vui lòng dành ít phút để hoàn thành "
                 + "<a href='https://forms.gle/bHrPbHS6Tcf2KPUu5' style='color: #2F6B4F; font-weight: bold; text-decoration: underline;'>"
                 + "link khảo sát trải nghiệm IntelliCare tại đây</a>. "
                 + "Ý kiến của bạn sẽ giúp chúng tôi cải thiện chất lượng dịch vụ trong tương lai."
+                + "</p>"
+                + "<p style='color: #9A3324; font-size: 12px;'>Lưu ý: đây là kết quả tham khảo tại workshop, không thay thế chẩn đoán y tế chuyên môn.</p>"
+                + "<p style='color: #9CA3AF; font-size: 11px; font-style: italic; text-align: center; margin-top: 24px;'>"
+                + "* Email được gửi tự động từ hệ thống. Vui lòng không trả lời email này."
                 + "</p>"
                 + "</div>";
     }
