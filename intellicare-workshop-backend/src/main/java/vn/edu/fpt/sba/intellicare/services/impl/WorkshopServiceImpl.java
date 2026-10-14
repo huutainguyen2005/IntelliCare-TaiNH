@@ -97,6 +97,10 @@ public class WorkshopServiceImpl implements IWorkshopService {
         WorkshopSession session = sessionRepository.findByPublicId(sessionId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên đo"));
 
+        // Xếp hàng theo từng cân: lần bấm sau phải đợi lần bấm trước commit xong mới được kiểm tra
+        // "có ai đang đo không" (xem lockDevice). Tránh 2 người bấm sát nhau cùng thành Pending.
+        sessionRepository.lockDevice(session.getDeviceId());
+
         if (session.getStatus() != WorkshopSessionStatus.AwaitingStart) {
             throw new RuntimeException("Phiên đo không ở trạng thái chờ xác nhận");
         }
@@ -157,6 +161,8 @@ public class WorkshopServiceImpl implements IWorkshopService {
                 .findTopByDeviceIdAndStatusAndStartedAtAfterOrderByStartedAtDesc(
                         deviceId, WorkshopSessionStatus.Pending, cutoff);
         if (sessionOpt.isEmpty()) {
+            log.warn("[SUBMIT] Bỏ qua: không có phiên Pending còn hạn cho deviceId='{}' "
+                    + "(chưa bấm 'Sẵn sàng', đã quá hạn {}s, hoặc sai deviceId)", deviceId, pendingTimeoutSeconds);
             return; // Không có phiên đang chờ - bỏ qua, không báo lỗi
         }
 

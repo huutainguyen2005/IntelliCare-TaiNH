@@ -18,6 +18,13 @@ public interface WorkshopSessionRepository extends JpaRepository<WorkshopSession
 
     Optional<WorkshopSession> findByPublicId(UUID publicId);
 
+    // Khóa theo từng cân (advisory lock mức transaction của Postgres): các lần bấm "Sẵn sàng"
+    // trên cùng 1 cân phải xếp hàng tuần tự. Không có khóa này, 2 người bấm sát nhau cùng thấy
+    // "chưa ai đo" rồi cùng thành Pending. Khóa tự nhả khi transaction commit/rollback.
+    // cast(... as text) vì hàm này trả về kiểu void, Hibernate không đọc được kết quả void.
+    @Query(value = "select cast(pg_advisory_xact_lock(hashtext(:deviceId)) as text)", nativeQuery = true)
+    String lockDevice(@Param("deviceId") String deviceId);
+
     Optional<WorkshopSession> findTopByDeviceIdAndStatusOrderByCreatedAtDesc(
             String deviceId, WorkshopSessionStatus status);
 
